@@ -2,6 +2,7 @@
 
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
+[![Qodana](https://github.com/forcebit/http-message-signatures-rfc9421-go/actions/workflows/qodana_code_quality.yml/badge.svg)](https://github.com/forcebit/http-message-signatures-rfc9421-go/actions/workflows/qodana_code_quality.yml)
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/forcebit/http-message-signatures-rfc9421-go)](https://goreportcard.com/report/github.com/forcebit/http-message-signatures-rfc9421-go)
