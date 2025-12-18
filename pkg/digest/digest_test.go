@@ -563,7 +563,7 @@ func formatInt(n int) string {
 		return string(rune('0' + n))
 	}
 	// Simple integer to string
-	digits := []byte{}
+	var digits []byte
 	for n > 0 {
 		digits = append([]byte{byte('0' + n%10)}, digits...)
 		n /= 10

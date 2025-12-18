@@ -19,16 +19,13 @@ import (
 // All deprecated algorithms (md5, sha-1, adler32, crc32c, unixsum, unixcksum)
 // are explicitly rejected for security reasons.
 const (
-	// SHA-2 family (NIST FIPS 180-4)
 	AlgorithmSHA256    = "sha-256"
 	AlgorithmSHA512    = "sha-512"
 	AlgorithmSHA512256 = "sha-512/256"
 
-	// SHA-3 family (NIST FIPS 202)
 	AlgorithmSHA3256 = "sha3-256"
 	AlgorithmSHA3512 = "sha3-512"
 
-	// BLAKE2b family (RFC 7693)
 	AlgorithmBLAKE2b256 = "blake2b-256"
 	AlgorithmBLAKE2b512 = "blake2b-512"
 )

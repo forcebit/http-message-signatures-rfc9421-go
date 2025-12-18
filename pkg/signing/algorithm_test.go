@@ -74,7 +74,7 @@ func TestSupportedAlgorithms_RFC9421Compliance(t *testing.T) {
 		algorithmSet[alg] = true
 	}
 
-	missing := []string{}
+	var missing []string
 	for _, expected := range expectedAlgorithms {
 		if !algorithmSet[expected] {
 			missing = append(missing, expected)

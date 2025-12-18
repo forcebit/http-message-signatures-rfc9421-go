@@ -38,7 +38,7 @@ func TestAssembleSignatureBase(t *testing.T) {
 
 	t.Run("empty component lines", func(t *testing.T) {
 		// RFC 9421 Appendix B.2.1: Minimal signature with no covered components
-		componentLines := []string{}
+		var componentLines []string
 		signatureParamsLine := `"@signature-params": ()`
 
 		got := assembleSignatureBase(componentLines, signatureParamsLine)

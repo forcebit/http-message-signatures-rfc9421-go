@@ -69,12 +69,12 @@ func (a *ed25519Algorithm) Sign(signatureBase []byte, key interface{}) ([]byte, 
 	}
 
 	if len(edKey) == 0 {
-		return nil, fmt.Errorf("Ed25519 private key is nil or empty")
+		return nil, fmt.Errorf("ed25519 private key is nil or empty")
 	}
 
 	// Validate key size (64 bytes per RFC 8032)
 	if len(edKey) != ed25519.PrivateKeySize {
-		return nil, fmt.Errorf("Ed25519 private key must be %d bytes, got %d bytes", ed25519.PrivateKeySize, len(edKey))
+		return nil, fmt.Errorf("ed25519 private key must be %d bytes, got %d bytes", ed25519.PrivateKeySize, len(edKey))
 	}
 
 	// Sign the signature base (deterministic)
@@ -121,7 +121,7 @@ func (a *ed25519Algorithm) Verify(signatureBase, signature []byte, key interface
 
 	// Ed25519 signatures are always 64 bytes
 	if len(signature) != ed25519.SignatureSize {
-		return fmt.Errorf("Ed25519 signature must be %d bytes, got %d bytes", ed25519.SignatureSize, len(signature))
+		return fmt.Errorf("ed25519 signature must be %d bytes, got %d bytes", ed25519.SignatureSize, len(signature))
 	}
 
 	edKey, ok := key.(ed25519.PublicKey)
@@ -130,12 +130,12 @@ func (a *ed25519Algorithm) Verify(signatureBase, signature []byte, key interface
 	}
 
 	if len(edKey) == 0 {
-		return fmt.Errorf("Ed25519 public key is nil or empty")
+		return fmt.Errorf("ed25519 public key is nil or empty")
 	}
 
 	// Validate key size (32 bytes per RFC 8032)
 	if len(edKey) != ed25519.PublicKeySize {
-		return fmt.Errorf("Ed25519 public key must be %d bytes, got %d bytes", ed25519.PublicKeySize, len(edKey))
+		return fmt.Errorf("ed25519 public key must be %d bytes, got %d bytes", ed25519.PublicKeySize, len(edKey))
 	}
 
 	// Verify the signature

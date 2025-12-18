@@ -10,7 +10,7 @@ import (
 func TestFormatSignatureParamsLine(t *testing.T) {
 	t.Run("empty components list", func(t *testing.T) {
 		// RFC 9421 Appendix B.2.1: minimal signature with no covered components
-		components := []parser.ComponentIdentifier{}
+		var components []parser.ComponentIdentifier
 		params := parser.SignatureParams{}
 
 		got := formatSignatureParamsLine(components, params)
