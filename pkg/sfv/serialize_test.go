@@ -480,9 +480,9 @@ func TestSerializeString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := serializeString(tt.input)
+			got := SerializeString(tt.input)
 			if got != tt.want {
-				t.Errorf("serializeString(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("SerializeString(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}

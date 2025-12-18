@@ -490,3 +490,176 @@ func TestFormatComponentIdentifier(t *testing.T) {
 		}
 	})
 }
+
+// TestSignatureParamsEscaping tests RFC 8941 string escaping to prevent parameter injection.
+// This is a security regression test for the parameter injection vulnerability.
+func TestSignatureParamsEscaping(t *testing.T) {
+	t.Run("keyid with embedded quote", func(t *testing.T) {
+		components := []parser.ComponentIdentifier{
+			{Name: "@method", Type: parser.ComponentDerived},
+		}
+		keyid := `my"key`
+		params := parser.SignatureParams{KeyID: &keyid}
+
+		got := formatSignatureParamsLine(components, params)
+		// Quote must be escaped as \"
+		want := `"@signature-params": ("@method");keyid="my\"key"`
+
+		if got != want {
+			t.Errorf("formatSignatureParamsLine() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("keyid with backslash", func(t *testing.T) {
+		components := []parser.ComponentIdentifier{
+			{Name: "@method", Type: parser.ComponentDerived},
+		}
+		keyid := `my\key`
+		params := parser.SignatureParams{KeyID: &keyid}
+
+		got := formatSignatureParamsLine(components, params)
+		// Backslash must be escaped as \\
+		want := `"@signature-params": ("@method");keyid="my\\key"`
+
+		if got != want {
+			t.Errorf("formatSignatureParamsLine() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("keyid injection attempt", func(t *testing.T) {
+		// Attacker tries to inject created parameter via keyid
+		components := []parser.ComponentIdentifier{
+			{Name: "@method", Type: parser.ComponentDerived},
+		}
+		keyid := `key";created=9999999999`
+		params := parser.SignatureParams{KeyID: &keyid}
+
+		got := formatSignatureParamsLine(components, params)
+		// The injection attempt must be escaped, not interpreted as a parameter
+		want := `"@signature-params": ("@method");keyid="key\";created=9999999999"`
+
+		if got != want {
+			t.Errorf("formatSignatureParamsLine() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("nonce with special characters", func(t *testing.T) {
+		components := []parser.ComponentIdentifier{
+			{Name: "@method", Type: parser.ComponentDerived},
+		}
+		nonce := `say "hello\world"`
+		params := parser.SignatureParams{Nonce: &nonce}
+
+		got := formatSignatureParamsLine(components, params)
+		// Both quotes and backslashes must be escaped
+		want := `"@signature-params": ("@method");nonce="say \"hello\\world\""`
+
+		if got != want {
+			t.Errorf("formatSignatureParamsLine() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("alg with quote", func(t *testing.T) {
+		components := []parser.ComponentIdentifier{
+			{Name: "@method", Type: parser.ComponentDerived},
+		}
+		alg := `alg"test`
+		params := parser.SignatureParams{Algorithm: &alg}
+
+		got := formatSignatureParamsLine(components, params)
+		want := `"@signature-params": ("@method");alg="alg\"test"`
+
+		if got != want {
+			t.Errorf("formatSignatureParamsLine() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("tag with quote", func(t *testing.T) {
+		components := []parser.ComponentIdentifier{
+			{Name: "@method", Type: parser.ComponentDerived},
+		}
+		tag := `tag"test`
+		params := parser.SignatureParams{Tag: &tag}
+
+		got := formatSignatureParamsLine(components, params)
+		want := `"@signature-params": ("@method");tag="tag\"test"`
+
+		if got != want {
+			t.Errorf("formatSignatureParamsLine() = %q, want %q", got, want)
+		}
+	})
+}
+
+// TestComponentIdentifierEscaping tests RFC 8941 string escaping for component parameters.
+func TestComponentIdentifierEscaping(t *testing.T) {
+	t.Run("string parameter with embedded quote", func(t *testing.T) {
+		comp := parser.ComponentIdentifier{
+			Name: "@query-param",
+			Type: parser.ComponentDerived,
+			Parameters: []parser.Parameter{
+				{Key: "name", Value: parser.String{Value: `search"query`}},
+			},
+		}
+
+		got := formatComponentIdentifier(comp)
+		want := `"@query-param";name="search\"query"`
+
+		if got != want {
+			t.Errorf("formatComponentIdentifier() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("string parameter with backslash", func(t *testing.T) {
+		comp := parser.ComponentIdentifier{
+			Name: "@query-param",
+			Type: parser.ComponentDerived,
+			Parameters: []parser.Parameter{
+				{Key: "name", Value: parser.String{Value: `path\to\file`}},
+			},
+		}
+
+		got := formatComponentIdentifier(comp)
+		want := `"@query-param";name="path\\to\\file"`
+
+		if got != want {
+			t.Errorf("formatComponentIdentifier() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("string parameter injection attempt", func(t *testing.T) {
+		// Attacker tries to inject a parameter via the name value
+		comp := parser.ComponentIdentifier{
+			Name: "@query-param",
+			Type: parser.ComponentDerived,
+			Parameters: []parser.Parameter{
+				{Key: "name", Value: parser.String{Value: `search";sf`}},
+			},
+		}
+
+		got := formatComponentIdentifier(comp)
+		// The injection must be escaped, sf should NOT appear as separate parameter
+		want := `"@query-param";name="search\";sf"`
+
+		if got != want {
+			t.Errorf("formatComponentIdentifier() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("key parameter with both escapes", func(t *testing.T) {
+		comp := parser.ComponentIdentifier{
+			Name: "example-dict",
+			Type: parser.ComponentField,
+			Parameters: []parser.Parameter{
+				{Key: "key", Value: parser.String{Value: `member\"name`}},
+			},
+		}
+
+		got := formatComponentIdentifier(comp)
+		// Both quote and backslash must be escaped
+		want := `"example-dict";key="member\\\"name"`
+
+		if got != want {
+			t.Errorf("formatComponentIdentifier() = %q, want %q", got, want)
+		}
+	})
+}

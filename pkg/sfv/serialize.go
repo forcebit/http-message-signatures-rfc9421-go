@@ -145,7 +145,7 @@ func serializeBareItem(value interface{}) (string, error) {
 			return v, nil
 		}
 		// Otherwise, serialize as quoted string with escape sequences
-		return serializeString(v), nil
+		return SerializeString(v), nil
 
 	case []byte:
 		// Byte sequence: :base64:
@@ -161,8 +161,9 @@ func serializeBareItem(value interface{}) (string, error) {
 	}
 }
 
-// serializeString serializes a string to RFC 8941 quoted string format.
-func serializeString(s string) string {
+// SerializeString serializes a string to RFC 8941 quoted string format.
+// It escapes backslashes and double quotes per RFC 8941 Section 3.3.3.
+func SerializeString(s string) string {
 	var sb strings.Builder
 	sb.WriteRune('"')
 

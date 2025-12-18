@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
+	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/sfv"
 )
 
 // formatSignatureParamsLine constructs the @signature-params line per RFC 9421 Section 2.5.
@@ -44,24 +45,20 @@ func formatSignatureParamsLine(components []parser.ComponentIdentifier, params p
 		sb.WriteString(strconv.FormatInt(*params.Expires, 10))
 	}
 	if params.Nonce != nil {
-		sb.WriteString(`;nonce="`)
-		sb.WriteString(*params.Nonce)
-		sb.WriteString(`"`)
+		sb.WriteString(`;nonce=`)
+		sb.WriteString(sfv.SerializeString(*params.Nonce))
 	}
 	if params.Algorithm != nil {
-		sb.WriteString(`;alg="`)
-		sb.WriteString(*params.Algorithm)
-		sb.WriteString(`"`)
+		sb.WriteString(`;alg=`)
+		sb.WriteString(sfv.SerializeString(*params.Algorithm))
 	}
 	if params.KeyID != nil {
-		sb.WriteString(`;keyid="`)
-		sb.WriteString(*params.KeyID)
-		sb.WriteString(`"`)
+		sb.WriteString(`;keyid=`)
+		sb.WriteString(sfv.SerializeString(*params.KeyID))
 	}
 	if params.Tag != nil {
-		sb.WriteString(`;tag="`)
-		sb.WriteString(*params.Tag)
-		sb.WriteString(`"`)
+		sb.WriteString(`;tag=`)
+		sb.WriteString(sfv.SerializeString(*params.Tag))
 	}
 
 	return sb.String()
@@ -104,10 +101,9 @@ func formatComponentIdentifier(comp parser.ComponentIdentifier) string {
 			// Boolean true is just the flag name (no =?1)
 
 		case parser.String:
-			// String parameters appear as key="value"
-			sb.WriteString(`="`)
-			sb.WriteString(v.Value)
-			sb.WriteString(`"`)
+			// String parameters appear as key="value" with proper escaping
+			sb.WriteString("=")
+			sb.WriteString(sfv.SerializeString(v.Value))
 
 		case parser.Token:
 			// Token parameters appear as key=token (no quotes)
