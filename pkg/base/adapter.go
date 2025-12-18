@@ -106,11 +106,11 @@ func (w *responseWrapper) IsResponse() bool {
 }
 
 func (w *responseWrapper) Method() (string, error) {
-	return "", errors.New("Method() called on HTTP response (only valid for requests)")
+	return "", errors.New("method Method() called on HTTP response (only valid for requests)")
 }
 
 func (w *responseWrapper) URL() (*url.URL, error) {
-	return nil, errors.New("URL() called on HTTP response (only valid for requests)")
+	return nil, errors.New("method URL() called on HTTP response (only valid for requests)")
 }
 
 func (w *responseWrapper) StatusCode() (int, error) {
