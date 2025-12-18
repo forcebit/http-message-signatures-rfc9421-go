@@ -278,6 +278,19 @@ Verifies Content-Digest header against streaming body (O(1) memory).
 - **Algorithm rejection** - deprecated algorithms explicitly rejected
 - **DoS prevention** - configurable parser limits via `sfv.Limits`
 
+## Benchmarks
+
+Compared against other Go RFC 9421 implementations ([yaronf/httpsign](https://github.com/yaronf/httpsign), [remitly-oss/httpsig-go](https://github.com/remitly-oss/httpsig-go), [common-fate/httpsig](https://github.com/common-fate/httpsig)):
+
+| Metric | Sign | Verify |
+|--------|------|--------|
+| **ECDSA-P256** | 15-18% faster | 10-16% faster |
+| **HMAC-SHA256** | 1.8-2.4x faster | 9-16x faster |
+| **Memory** | 40-85% less | 40-85% less |
+| **Allocations** | 50-90% fewer | 50-90% fewer |
+
+See [benchmarks/README.md](benchmarks/README.md) for detailed results and methodology.
+
 ## Testing
 
 ```bash
