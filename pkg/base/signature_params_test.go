@@ -334,16 +334,17 @@ func TestFormatComponentIdentifier(t *testing.T) {
 	})
 
 	t.Run("component with byte sequence parameter", func(t *testing.T) {
+		// Raw bytes "Hello World" should be base64 encoded to "SGVsbG8gV29ybGQ="
 		comp := parser.ComponentIdentifier{
 			Name: "example-field",
 			Type: parser.ComponentField,
 			Parameters: []parser.Parameter{
-				{Key: "hash", Value: parser.ByteSequence{Value: []byte("SGVsbG8gV29ybGQ")}},
+				{Key: "hash", Value: parser.ByteSequence{Value: []byte("Hello World")}},
 			},
 		}
 
 		got := formatComponentIdentifier(comp)
-		want := `"example-field";hash=:SGVsbG8gV29ybGQ:`
+		want := `"example-field";hash=:SGVsbG8gV29ybGQ=:`
 
 		if got != want {
 			t.Errorf("formatComponentIdentifier() = %q, want %q", got, want)

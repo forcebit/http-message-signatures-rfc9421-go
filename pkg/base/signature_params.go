@@ -1,6 +1,7 @@
 package base
 
 import (
+	"encoding/base64"
 	"strconv"
 	"strings"
 
@@ -118,7 +119,7 @@ func formatComponentIdentifier(comp parser.ComponentIdentifier) string {
 		case parser.ByteSequence:
 			// ByteSequence parameters appear as key=:base64:
 			sb.WriteString("=:")
-			sb.WriteString(string(v.Value)) // Already base64 encoded
+			sb.WriteString(base64.StdEncoding.EncodeToString(v.Value))
 			sb.WriteString(":")
 		}
 	}
