@@ -26,13 +26,20 @@ func TestWrapRequest(t *testing.T) {
 	})
 
 	t.Run("Method returns HTTP method", func(t *testing.T) {
-		if got := wrapped.Method(); got != "POST" {
+		got, err := wrapped.Method()
+		if err != nil {
+			t.Fatalf("Method() error = %v", err)
+		}
+		if got != "POST" {
 			t.Errorf("Method() = %q, want %q", got, "POST")
 		}
 	})
 
 	t.Run("URL returns request URL", func(t *testing.T) {
-		got := wrapped.URL()
+		got, err := wrapped.URL()
+		if err != nil {
+			t.Fatalf("URL() error = %v", err)
+		}
 		if got.Scheme != "https" {
 			t.Errorf("URL().Scheme = %q, want %q", got.Scheme, "https")
 		}
@@ -83,13 +90,11 @@ func TestWrapRequest(t *testing.T) {
 		}
 	})
 
-	t.Run("StatusCode panics", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("StatusCode() should panic when called on request")
-			}
-		}()
-		wrapped.StatusCode()
+	t.Run("StatusCode returns error on request", func(t *testing.T) {
+		_, err := wrapped.StatusCode()
+		if err == nil {
+			t.Error("StatusCode() should return error when called on request")
+		}
 	})
 }
 
@@ -116,7 +121,11 @@ func TestWrapResponse(t *testing.T) {
 			t.Error("IsRequest() should return false for response wrapper")
 		}
 
-		if got := wrapped.StatusCode(); got != 200 {
+		got, err := wrapped.StatusCode()
+		if err != nil {
+			t.Fatalf("StatusCode() error = %v", err)
+		}
+		if got != 200 {
 			t.Errorf("StatusCode() = %d, want %d", got, 200)
 		}
 
@@ -138,7 +147,11 @@ func TestWrapResponse(t *testing.T) {
 			t.Error("RelatedRequest() should return a request message")
 		}
 
-		if got := relatedReq.Method(); got != "GET" {
+		got, err := relatedReq.Method()
+		if err != nil {
+			t.Fatalf("RelatedRequest().Method() error = %v", err)
+		}
+		if got != "GET" {
 			t.Errorf("RelatedRequest().Method() = %q, want %q", got, "GET")
 		}
 	})
@@ -161,23 +174,19 @@ func TestWrapResponse(t *testing.T) {
 		}
 	})
 
-	t.Run("Method panics", func(t *testing.T) {
+	t.Run("Method returns error on response", func(t *testing.T) {
 		wrapped := WrapResponse(resp, nil)
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Method() should panic when called on response")
-			}
-		}()
-		wrapped.Method()
+		_, err := wrapped.Method()
+		if err == nil {
+			t.Error("Method() should return error when called on response")
+		}
 	})
 
-	t.Run("URL panics", func(t *testing.T) {
+	t.Run("URL returns error on response", func(t *testing.T) {
 		wrapped := WrapResponse(resp, nil)
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("URL() should panic when called on response")
-			}
-		}()
-		wrapped.URL()
+		_, err := wrapped.URL()
+		if err == nil {
+			t.Error("URL() should return error when called on response")
+		}
 	})
 }

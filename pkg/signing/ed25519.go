@@ -149,5 +149,7 @@ func (a *ed25519Algorithm) Verify(signatureBase, signature []byte, key interface
 
 // init registers the Ed25519 algorithm in the global algorithm registry.
 func init() {
-	RegisterAlgorithm(&ed25519Algorithm{})
+	if err := RegisterAlgorithm(&ed25519Algorithm{}); err != nil {
+		panic(err)
+	}
 }

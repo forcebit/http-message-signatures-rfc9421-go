@@ -154,13 +154,14 @@ var algorithmRegistry = make(map[string]Algorithm)
 
 // RegisterAlgorithm registers an algorithm implementation in the global registry.
 // This is called by each algorithm's init() function.
-// Panics if the algorithm ID is already registered (programming error).
-func RegisterAlgorithm(alg Algorithm) {
+// Returns an error if the algorithm ID is already registered.
+func RegisterAlgorithm(alg Algorithm) error {
 	id := alg.ID()
 	if _, exists := algorithmRegistry[id]; exists {
-		panic(fmt.Sprintf("algorithm %q already registered", id))
+		return fmt.Errorf("algorithm %q already registered", id)
 	}
 	algorithmRegistry[id] = alg
+	return nil
 }
 
 // GetAlgorithm retrieves an algorithm implementation by its RFC 9421 identifier.

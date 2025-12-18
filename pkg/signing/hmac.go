@@ -165,5 +165,7 @@ func (a *hmacSHA256Algorithm) Verify(signatureBase, signature []byte, key interf
 
 // init registers the HMAC-SHA256 algorithm in the global algorithm registry.
 func init() {
-	RegisterAlgorithm(&hmacSHA256Algorithm{})
+	if err := RegisterAlgorithm(&hmacSHA256Algorithm{}); err != nil {
+		panic(err)
+	}
 }

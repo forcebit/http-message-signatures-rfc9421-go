@@ -22,16 +22,16 @@ type HTTPMessage interface {
 
 	// Method returns the HTTP method (GET, POST, etc.) for requests.
 	// The method is returned in uppercase as it appears in the request line.
-	// Panics if called on a response message.
-	Method() string
+	// Returns an error if called on a response message.
+	Method() (string, error)
 
 	// URL returns the complete request URL with scheme, host, path, and query.
-	// Panics if called on a response message.
-	URL() *url.URL
+	// Returns an error if called on a response message.
+	URL() (*url.URL, error)
 
 	// StatusCode returns the HTTP status code (200, 404, etc.) for responses.
-	// Panics if called on a request message.
-	StatusCode() int
+	// Returns an error if called on a request message.
+	StatusCode() (int, error)
 
 	// HeaderValues returns all values for the specified header field.
 	// Field name lookup is case-insensitive per HTTP semantics.

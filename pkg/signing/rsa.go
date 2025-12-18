@@ -289,6 +289,10 @@ func (a *rsaPKCS1v15Algorithm) Verify(signatureBase, signature []byte, key inter
 
 // init registers both RSA algorithms in the global registry.
 func init() {
-	RegisterAlgorithm(&rsaPSSAlgorithm{})
-	RegisterAlgorithm(&rsaPKCS1v15Algorithm{})
+	if err := RegisterAlgorithm(&rsaPSSAlgorithm{}); err != nil {
+		panic(err)
+	}
+	if err := RegisterAlgorithm(&rsaPKCS1v15Algorithm{}); err != nil {
+		panic(err)
+	}
 }

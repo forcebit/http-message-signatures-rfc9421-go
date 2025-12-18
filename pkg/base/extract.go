@@ -311,37 +311,38 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@method is only valid for requests")
 		}
-		return msg.Method(), nil
+		method, _ := msg.Method()
+		return method, nil
 
 	case "@target-uri":
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@target-uri is only valid for requests")
 		}
-		url := msg.URL()
-		return url.String(), nil
+		u, _ := msg.URL()
+		return u.String(), nil
 
 	case "@authority":
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@authority is only valid for requests")
 		}
-		url := msg.URL()
-		return url.Host, nil
+		u, _ := msg.URL()
+		return u.Host, nil
 
 	case "@scheme":
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@scheme is only valid for requests")
 		}
-		url := msg.URL()
-		return url.Scheme, nil
+		u, _ := msg.URL()
+		return u.Scheme, nil
 
 	case "@request-target":
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@request-target is only valid for requests")
 		}
-		url := msg.URL()
-		result := url.Path
-		if url.RawQuery != "" {
-			result += "?" + url.RawQuery
+		u, _ := msg.URL()
+		result := u.Path
+		if u.RawQuery != "" {
+			result += "?" + u.RawQuery
 		}
 		return result, nil
 
@@ -349,22 +350,22 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@path is only valid for requests")
 		}
-		url := msg.URL()
+		u, _ := msg.URL()
 		// RFC 9421 Section 2.2.6: an empty path string is normalized as a single slash (/) character
-		if url.Path == "" {
+		if u.Path == "" {
 			return "/", nil
 		}
-		return url.Path, nil
+		return u.Path, nil
 
 	case "@query":
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@query is only valid for requests")
 		}
-		url := msg.URL()
-		if url.RawQuery == "" {
+		u, _ := msg.URL()
+		if u.RawQuery == "" {
 			return "?", nil
 		}
-		return "?" + url.RawQuery, nil
+		return "?" + u.RawQuery, nil
 
 	case "@query-param":
 		if !msg.IsRequest() {
@@ -384,8 +385,8 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 			return "", fmt.Errorf("@query-param requires 'name' parameter")
 		}
 
-		url := msg.URL()
-		values := url.Query()[paramName]
+		u, _ := msg.URL()
+		values := u.Query()[paramName]
 		if len(values) == 0 {
 			return "", fmt.Errorf("query parameter %q not found", paramName)
 		}
@@ -396,7 +397,8 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 		if !msg.IsResponse() {
 			return "", fmt.Errorf("@status is only valid for responses")
 		}
-		return strconv.Itoa(msg.StatusCode()), nil
+		statusCode, _ := msg.StatusCode()
+		return strconv.Itoa(statusCode), nil
 
 	default:
 		return "", fmt.Errorf("unknown derived component: %s", comp.Name)

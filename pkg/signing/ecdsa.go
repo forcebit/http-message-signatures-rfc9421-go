@@ -273,6 +273,10 @@ func (a *ecdsaP384Algorithm) Verify(signatureBase, signature []byte, key interfa
 
 // init registers both ECDSA algorithms in the global algorithm registry.
 func init() {
-	RegisterAlgorithm(&ecdsaP256Algorithm{})
-	RegisterAlgorithm(&ecdsaP384Algorithm{})
+	if err := RegisterAlgorithm(&ecdsaP256Algorithm{}); err != nil {
+		panic(err)
+	}
+	if err := RegisterAlgorithm(&ecdsaP384Algorithm{}); err != nil {
+		panic(err)
+	}
 }

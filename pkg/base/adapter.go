@@ -2,6 +2,7 @@
 package base
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 )
@@ -35,16 +36,16 @@ func (w *requestWrapper) IsResponse() bool {
 	return false
 }
 
-func (w *requestWrapper) Method() string {
-	return w.req.Method
+func (w *requestWrapper) Method() (string, error) {
+	return w.req.Method, nil
 }
 
-func (w *requestWrapper) URL() *url.URL {
-	return w.req.URL
+func (w *requestWrapper) URL() (*url.URL, error) {
+	return w.req.URL, nil
 }
 
-func (w *requestWrapper) StatusCode() int {
-	panic("StatusCode() called on HTTP request (only valid for responses)")
+func (w *requestWrapper) StatusCode() (int, error) {
+	return 0, errors.New("StatusCode() called on HTTP request (only valid for responses)")
 }
 
 func (w *requestWrapper) HeaderValues(name string) []string {
@@ -104,16 +105,16 @@ func (w *responseWrapper) IsResponse() bool {
 	return true
 }
 
-func (w *responseWrapper) Method() string {
-	panic("Method() called on HTTP response (only valid for requests)")
+func (w *responseWrapper) Method() (string, error) {
+	return "", errors.New("Method() called on HTTP response (only valid for requests)")
 }
 
-func (w *responseWrapper) URL() *url.URL {
-	panic("URL() called on HTTP response (only valid for requests)")
+func (w *responseWrapper) URL() (*url.URL, error) {
+	return nil, errors.New("URL() called on HTTP response (only valid for requests)")
 }
 
-func (w *responseWrapper) StatusCode() int {
-	return w.resp.StatusCode
+func (w *responseWrapper) StatusCode() (int, error) {
+	return w.resp.StatusCode, nil
 }
 
 func (w *responseWrapper) HeaderValues(name string) []string {

@@ -87,32 +87,30 @@ func TestSupportedAlgorithms_RFC9421Compliance(t *testing.T) {
 	}
 }
 
-// TestRegisterAlgorithm_DuplicatePanics tests that registering duplicate algorithm panics.
-func TestRegisterAlgorithm_DuplicatePanics(t *testing.T) {
+// TestRegisterAlgorithm_DuplicateReturnsError tests that registering duplicate algorithm returns error.
+func TestRegisterAlgorithm_DuplicateReturnsError(t *testing.T) {
 	// Create a mock algorithm
 	mock := &mockAlgorithm{id: "test-duplicate-algorithm"}
 
-	// Register it
-	RegisterAlgorithm(mock)
+	// First registration should succeed
+	err := RegisterAlgorithm(mock)
+	if err != nil {
+		t.Fatalf("first registration failed: %v", err)
+	}
 
 	// Clean up
 	defer func() {
 		delete(algorithmRegistry, "test-duplicate-algorithm")
 	}()
 
-	// Try to register again - should panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic when registering duplicate algorithm, got nil")
-		} else {
-			panicMsg := r.(string)
-			if !strings.Contains(panicMsg, "already registered") {
-				t.Errorf("expected panic message about duplicate, got: %v", r)
-			}
-		}
-	}()
-
-	RegisterAlgorithm(mock)
+	// Second registration should return error
+	err = RegisterAlgorithm(mock)
+	if err == nil {
+		t.Fatal("expected error when registering duplicate algorithm")
+	}
+	if !strings.Contains(err.Error(), "already registered") {
+		t.Errorf("expected error about duplicate, got: %v", err)
+	}
 }
 
 // mockAlgorithm is a simple mock for testing the registry.
