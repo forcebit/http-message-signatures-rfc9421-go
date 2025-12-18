@@ -3,10 +3,8 @@ package base
 import (
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"encoding/asn1"
 	"encoding/base64"
 	"io"
-	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,7 +26,7 @@ const testAssetsDir = "."
 // loadTestFile loads a file from test-assets directory.
 func loadTestFile(t *testing.T, filename string) []byte {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(testAssetsDir, filename))
+	data, err := os.ReadFile(filepath.Join(testAssetsDir, filename)) //nolint:gosec // test assets from known directory
 	if err != nil {
 		t.Fatalf("failed to load test file %s: %v", filename, err)
 	}
@@ -68,25 +66,6 @@ func loadSharedSecret(t *testing.T) []byte {
 		t.Fatalf("failed to decode shared secret: %v", err)
 	}
 	return secret
-}
-
-// ecdsaFixedToASN1 converts RFC 9421's fixed r||s ECDSA signature format to ASN.1 DER.
-// RFC 9421 Section 3.3.4 specifies: "The signature output is encoded as the two integers
-// r and s, each left-padded to n/2 octets if necessary, concatenated together."
-// Go's crypto/ecdsa uses ASN.1 DER encoding, so we need to convert.
-func ecdsaFixedToASN1(sig []byte) ([]byte, error) {
-	if len(sig) != 64 {
-		return nil, asn1.StructuralError{Msg: "ECDSA P-256 signature must be 64 bytes (r||s format)"}
-	}
-
-	// Split into r and s (32 bytes each for P-256)
-	r := new(big.Int).SetBytes(sig[:32])
-	s := new(big.Int).SetBytes(sig[32:])
-
-	// Encode as ASN.1 DER SEQUENCE { r INTEGER, s INTEGER }
-	return asn1.Marshal(struct {
-		R, S *big.Int
-	}{r, s})
 }
 
 // RFC 9421 Appendix B.2.1 - Minimal Signature

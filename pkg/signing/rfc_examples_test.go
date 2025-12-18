@@ -30,7 +30,7 @@ const testAssetsDir = "../../tests"
 // loadTestFile loads a file from test-assets directory.
 func loadTestFile(t *testing.T, filename string) []byte {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(testAssetsDir, filename))
+	data, err := os.ReadFile(filepath.Join(testAssetsDir, filename)) //nolint:gosec // test assets from known directory
 	if err != nil {
 		t.Fatalf("failed to load test file %s: %v", filename, err)
 	}
@@ -152,24 +152,13 @@ const signatureBaseB26 = `"date": Tue, 20 Apr 2021 02:07:55 GMT
 // RFC 9421 Appendix B.2 Expected Signatures
 // =============================================================================
 //
-// NOTE: These are the base64-encoded signatures from the RFC with line
-// wrapping removed. Non-deterministic algorithms (RSA-PSS, ECDSA) will
-// produce different signatures each time, but these values can be verified.
-
-// expectedSignatureB21 is the RFC example signature for B.2.1.
-// Algorithm: rsa-pss-sha512 (non-deterministic)
-const expectedSignatureB21 = "d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q=="
-
-// expectedSignatureB22 is the RFC example signature for B.2.2.
-// Algorithm: rsa-pss-sha512 (non-deterministic)
-const expectedSignatureB22 = "LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw=="
-
-// expectedSignatureB23 is the RFC example signature for B.2.3.
-// Algorithm: rsa-pss-sha512 (non-deterministic)
-const expectedSignatureB23 = "bbN8oArOxYoyylQQUU6QYwrTuaxLwjAC9fbY2F6SVWvh0yBiMIRGOnMYwZ/5MR6fb0Kh1rIRASVxFkeGt683+qRpRRU5p2voTp768ZrCUb38K0fUxN0O0iC59DzYx8DFll5GmydPxSmme9v6ULbMFkl+V5B1TP/yPViV7KsLNmvKiLJH1pFkh/aYA2HXXZzNBXmIkoQoLd7YfW91kE9o/CCoC1xMy7JA1ipwvKvfrs65ldmlu9bpG6A9BmzhuzF8Eim5f8ui9eH8LZH896+QIF61ka39VBrohr9iyMUJpvRX2Zbhl5ZJzSRxpJyoEZAFL2FUo5fTIztsDZKEgM4cUA=="
+// NOTE: These are the base64-encoded signatures from the RFC.
+// Non-deterministic algorithms (RSA-PSS, ECDSA) produce different signatures
+// each time. ECDSA B.2.4 signature is kept because it can be verified after
+// converting from RFC's r||s format to Go's ASN.1 DER format.
 
 // expectedSignatureB24 is the RFC example signature for B.2.4.
-// Algorithm: ecdsa-p256-sha256 (non-deterministic)
+// Algorithm: ecdsa-p256-sha256 (non-deterministic, but verifiable)
 const expectedSignatureB24 = "wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw=="
 
 // expectedSignatureB25 is the RFC example signature for B.2.5.
@@ -189,9 +178,9 @@ const expectedSignatureB26 = "wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02
 // RFC 9421 Appendix B.2.1: Minimal Signature Using rsa-pss-sha512
 //
 // This test validates RSA-PSS signature generation with:
-// - Empty covered components list (only @signature-params)
-// - Signature parameters: created=1618884473, keyid="test-key-rsa-pss",
-//   nonce="b3k2pp5k7z-50gnwp.yemd"
+//   - Empty covered components list (only @signature-params)
+//   - Signature parameters: created=1618884473, keyid="test-key-rsa-pss",
+//     nonce="b3k2pp5k7z-50gnwp.yemd"
 //
 // Key: test-key-rsa-private.pem / test-key-rsa-public.pem
 // (Note: RFC's test-key-rsa-pss uses PKCS#8 with RSA-PSS OID not supported by Go stdlib,
@@ -238,9 +227,9 @@ func TestRFC9421_B2_1_MinimalSignature(t *testing.T) {
 // RFC 9421 Appendix B.2.2: Selective Covered Components Using rsa-pss-sha512
 //
 // This test validates RSA-PSS signature generation with selective coverage:
-// - Covered components: @authority, content-digest, @query-param;name="Pet"
-// - Signature parameters: created=1618884473, keyid="test-key-rsa-pss",
-//   tag="header-example"
+//   - Covered components: @authority, content-digest, @query-param;name="Pet"
+//   - Signature parameters: created=1618884473, keyid="test-key-rsa-pss",
+//     tag="header-example"
 //
 // Key: test-key-rsa-private.pem / test-key-rsa-public.pem
 // (Note: RFC's test-key-rsa-pss uses PKCS#8 with RSA-PSS OID not supported by Go stdlib)
@@ -280,10 +269,10 @@ func TestRFC9421_B2_2_SelectiveCoverage(t *testing.T) {
 // RFC 9421 Appendix B.2.3: Full Coverage Using rsa-pss-sha512
 //
 // This test validates RSA-PSS signature generation with full coverage:
-// - Covered components: date, @method, @path, @query, @authority,
-//   content-type, content-digest, content-length
-// - Signature parameters: created=1618884473, keyid="test-key-rsa-pss"
-// - Note: Host header is NOT covered (using @authority instead)
+//   - Covered components: date, @method, @path, @query, @authority,
+//     content-type, content-digest, content-length
+//   - Signature parameters: created=1618884473, keyid="test-key-rsa-pss"
+//   - Note: Host header is NOT covered (using @authority instead)
 //
 // Key: test-key-rsa-private.pem / test-key-rsa-public.pem
 // (Note: RFC's test-key-rsa-pss uses PKCS#8 with RSA-PSS OID not supported by Go stdlib)
@@ -429,10 +418,10 @@ func TestRFC9421_B2_5_SigningRequest_HMAC(t *testing.T) {
 // RFC 9421 Appendix B.2.6: Signing a Request Using ed25519
 //
 // This test validates Ed25519 signature generation:
-// - Covered components: date, @method, @path, @authority, content-type,
-//   content-length
-// - Signature parameters: created=1618884473, keyid="test-key-ed25519"
-// - DETERMINISTIC: Same input always produces same output (RFC 8032)
+//   - Covered components: date, @method, @path, @authority, content-type,
+//     content-length
+//   - Signature parameters: created=1618884473, keyid="test-key-ed25519"
+//   - DETERMINISTIC: Same input always produces same output (RFC 8032)
 //
 // Key: test-key-ed25519-private.pem / test-key-ed25519-public.pem
 // Algorithm: ed25519
