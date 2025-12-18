@@ -208,7 +208,7 @@ func TestBuild_RFC9421_TestVectors(t *testing.T) {
 
 		msg := WrapRequest(req)
 
-		components := []parser.ComponentIdentifier{}
+		var components []parser.ComponentIdentifier
 		params := parser.SignatureParams{}
 
 		got, err := Build(msg, components, params)
