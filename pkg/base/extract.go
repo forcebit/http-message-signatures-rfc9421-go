@@ -13,10 +13,14 @@ import (
 // normalizeLineFolding replaces obsolete line folding with single space.
 // RFC 9421 Section 2.1: obs-fold is CRLF or LF followed by one or more whitespace characters.
 // This function replaces each sequence of (CRLF|LF) + whitespace with a single space.
-func normalizeLineFolding(s string) string {
+//
+// Returns an error if bare CR, LF, or CRLF characters are found that are not part of obs-fold.
+// Per RFC 7230 Section 3.2, properly formed HTTP header values must not contain bare newlines.
+// Bare newlines in header values could allow signature base injection attacks.
+func normalizeLineFolding(s string) (string, error) {
 	// Fast path: no folding characters present (99% of cases)
 	if !strings.ContainsAny(s, "\r\n") {
-		return s
+		return s, nil
 	}
 
 	// Slow path: build normalized string
@@ -37,10 +41,12 @@ func normalizeLineFolding(s string) string {
 				}
 				result.WriteByte(' ')
 			} else {
-				// CRLF not followed by whitespace - keep as is
-				result.WriteByte('\r')
-				i++
+				// CRLF not followed by whitespace - reject as invalid
+				return "", fmt.Errorf("invalid header value: bare CRLF not part of obs-fold")
 			}
+		} else if s[i] == '\r' {
+			// Bare CR without LF - reject as invalid
+			return "", fmt.Errorf("invalid header value: bare CR not part of obs-fold")
 		} else if s[i] == '\n' {
 			// Found LF (without CR)
 			if i+1 < len(s) && (s[i+1] == ' ' || s[i+1] == '\t') {
@@ -52,9 +58,8 @@ func normalizeLineFolding(s string) string {
 				}
 				result.WriteByte(' ')
 			} else {
-				// LF not followed by whitespace - keep as is
-				result.WriteByte('\n')
-				i++
+				// LF not followed by whitespace - reject as invalid
+				return "", fmt.Errorf("invalid header value: bare LF not part of obs-fold")
 			}
 		} else {
 			// Regular character
@@ -63,7 +68,7 @@ func normalizeLineFolding(s string) string {
 		}
 	}
 
-	return result.String()
+	return result.String(), nil
 }
 
 // extractComponentValue extracts the canonicalized value for a component identifier.
@@ -192,18 +197,14 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 	}
 
 	// Step 2 & 3: Strip leading/trailing whitespace and normalize line folding
+	// RFC 9421 Section 2.1: obs-fold is CRLF or LF followed by whitespace
 	normalizedValues := make([]string, len(values))
 	for i, v := range values {
-		// Step 3: Replace obsolete line folding with single space
-		// RFC 9421 Section 2.1: obs-fold is CRLF or LF followed by whitespace
-		// Replace the entire sequence (newline + all following whitespace) with single space
-		v = normalizeLineFolding(v)
-
-		// Step 2: Strip leading and trailing whitespace
-		// Note: This must come AFTER line folding normalization to handle edge cases
-		v = strings.TrimSpace(v)
-
-		normalizedValues[i] = v
+		var err error
+		if v, err = normalizeLineFolding(v); err != nil {
+			return "", fmt.Errorf("component %q: %w", comp.Name, err)
+		}
+		normalizedValues[i] = strings.TrimSpace(v)
 	}
 
 	// Step 4: Join multiple values with ", " (comma + space)

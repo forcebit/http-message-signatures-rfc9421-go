@@ -11,9 +11,10 @@ import (
 // Test normalizeLineFolding function
 func TestNormalizeLineFolding(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		name    string
+		input   string
+		want    string
+		wantErr bool
 	}{
 		{
 			name:  "CRLF followed by space",
@@ -46,16 +47,6 @@ func TestNormalizeLineFolding(t *testing.T) {
 			want:  "line1 continuation",
 		},
 		{
-			name:  "CRLF not followed by whitespace",
-			input: "line1\r\nline2",
-			want:  "line1\r\nline2",
-		},
-		{
-			name:  "LF not followed by whitespace",
-			input: "line1\nline2",
-			want:  "line1\nline2",
-		},
-		{
 			name:  "no line folding",
 			input: "simple value",
 			want:  "simple value",
@@ -69,9 +60,63 @@ func TestNormalizeLineFolding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeLineFolding(tt.input)
+			got, err := normalizeLineFolding(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("normalizeLineFolding() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 			if got != tt.want {
 				t.Errorf("normalizeLineFolding() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestNormalizeLineFolding_RejectsBareNewlines tests that bare newlines are rejected.
+// This is a security regression test for signature base injection vulnerability.
+func TestNormalizeLineFolding_RejectsBareNewlines(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "bare LF",
+			input: "line1\nline2",
+		},
+		{
+			name:  "bare CRLF",
+			input: "line1\r\nline2",
+		},
+		{
+			name:  "bare CR",
+			input: "line1\rline2",
+		},
+		{
+			name:  "LF at end of string",
+			input: "line1\n",
+		},
+		{
+			name:  "CRLF at end of string",
+			input: "line1\r\n",
+		},
+		{
+			name:  "injection attempt via LF",
+			input: "benign\n\"@status\": 404",
+		},
+		{
+			name:  "injection attempt via CRLF",
+			input: "benign\r\n\"@method\": POST",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := normalizeLineFolding(tt.input)
+			if err == nil {
+				t.Errorf("normalizeLineFolding(%q) should return error for bare newline", tt.input)
+			}
+			if err != nil && !strings.Contains(err.Error(), "not part of obs-fold") {
+				t.Errorf("normalizeLineFolding(%q) error = %v, want error containing 'not part of obs-fold'", tt.input, err)
 			}
 		})
 	}
