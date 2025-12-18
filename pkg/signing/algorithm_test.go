@@ -124,10 +124,10 @@ func (m *mockAlgorithm) ID() string {
 	return m.id
 }
 
-func (m *mockAlgorithm) Sign(signatureBase []byte, key interface{}) ([]byte, error) {
+func (m *mockAlgorithm) Sign(_ []byte, _ interface{}) ([]byte, error) {
 	return []byte("mock-signature"), nil
 }
 
-func (m *mockAlgorithm) Verify(signatureBase, signature []byte, key interface{}) error {
+func (m *mockAlgorithm) Verify(_, _ []byte, _ interface{}) error {
 	return nil
 }
