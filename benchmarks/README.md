@@ -30,64 +30,64 @@ Benchmark comparison of Go implementations of RFC 9421 HTTP Message Signatures.
 
 | Algorithm | forcebit   | yaronf | remitly | common-fate |
 |-----------|------------|--------|---------|-------------|
-| RSA-PSS-SHA512 | 1,012,858  | 965,976 | 978,961 | **952,112** |
-| ECDSA-P256-SHA256 | **25,082** | 29,489 | 28,230 | 29,553      |
-| HMAC-SHA256 | **2,853**  | 5,088 | 5,491 | 6,799       |
+| RSA-PSS-SHA512 | **923,264** | 987,610 | 959,115 | 940,884 |
+| ECDSA-P256-SHA256 | **24,926** | 28,924 | 28,202 | 29,739 |
+| HMAC-SHA256 | **2,580**  | 5,071 | 5,803 | 6,931 |
 
 ```mermaid
 xychart-beta horizontal
     title "Sign Performance - All Algorithms (ns/op, lower is better)"
     x-axis ["RSA forcebit", "RSA yaronf", "RSA remitly", "RSA cf", "ECDSA forcebit", "ECDSA yaronf", "ECDSA remitly", "ECDSA cf", "HMAC forcebit", "HMAC yaronf", "HMAC remitly", "HMAC cf"]
-    y-axis "nanoseconds" 0 --> 1100000
-    bar [1012858, 965976, 978961, 952112, 25082, 29489, 28230, 29553, 2853, 5088, 5491, 6799]
+    y-axis "nanoseconds" 0 --> 1000000
+    bar [923264, 987610, 959115, 940884, 24926, 28924, 28202, 29739, 2580, 5071, 5803, 6931]
 ```
 
 ### Sign Memory Allocations (B/op)
 
 | Algorithm | forcebit   | yaronf | remitly | common-fate |
 |-----------|------------|--------|---------|-------------|
-| RSA-PSS-SHA512 | **8,301**  | 12,275 | 12,363 | 14,358 |
-| ECDSA-P256-SHA256 | **13,338** | 17,325 | 17,293 | 19,271 |
-| HMAC-SHA256 | **7,766**  | 10,817 | 11,321 | 14,725 |
+| RSA-PSS-SHA512 | **8,058**  | 12,275 | 12,363 | 14,357 |
+| ECDSA-P256-SHA256 | **13,220** | 17,326 | 17,294 | 19,271 |
+| HMAC-SHA256 | **7,650**  | 10,817 | 11,322 | 14,725 |
 
 ```mermaid
 xychart-beta horizontal
     title "Sign Memory - All Algorithms (bytes/op, lower is better)"
     x-axis ["RSA forcebit", "RSA yaronf", "RSA remitly", "RSA cf", "ECDSA forcebit", "ECDSA yaronf", "ECDSA remitly", "ECDSA cf", "HMAC forcebit", "HMAC yaronf", "HMAC remitly", "HMAC cf"]
     y-axis "bytes" 0 --> 20000
-    bar [8301, 12275, 12363, 14358, 13338, 17325, 17293, 19271, 7766, 10817, 11321, 14725]
+    bar [8058, 12275, 12363, 14357, 13220, 17326, 17294, 19271, 7650, 10817, 11322, 14725]
 ```
 
 ### Sign Allocation Count (allocs/op)
 
 | Algorithm | forcebit | yaronf | remitly | common-fate |
 |-----------|----------|--------|---------|-------------|
-| RSA-PSS-SHA512 | **62**   | 115 | 124 | 126 |
-| ECDSA-P256-SHA256 | **114**  | 185 | 181 | 183 |
-| HMAC-SHA256 | **61**   | 113 | 121 | 124 |
+| RSA-PSS-SHA512 | **56**   | 115 | 124 | 126 |
+| ECDSA-P256-SHA256 | **108**  | 185 | 181 | 183 |
+| HMAC-SHA256 | **55**   | 113 | 121 | 124 |
 
 ```mermaid
 xychart-beta horizontal
     title "Sign Allocations - All Algorithms (allocs/op, lower is better)"
     x-axis ["RSA forcebit", "RSA yaronf", "RSA remitly", "RSA cf", "ECDSA forcebit", "ECDSA yaronf", "ECDSA remitly", "ECDSA cf", "HMAC forcebit", "HMAC yaronf", "HMAC remitly", "HMAC cf"]
     y-axis "allocations" 0 --> 200
-    bar [62, 115, 124, 126, 114, 185, 181, 183, 61, 113, 121, 124]
+    bar [56, 115, 124, 126, 108, 185, 181, 183, 55, 113, 121, 124]
 ```
 
 ### Verify Performance (ns/op, lower is better)
 
 | Algorithm | forcebit   | yaronf | remitly | common-fate |
 |-----------|------------|--------|---------|-------------|
-| RSA-PSS-SHA512 | **29,730** | 37,363 | 33,930 | 35,244 |
-| ECDSA-P256-SHA256 | **55,380** | 63,504 | 64,433 | 60,928 |
-| HMAC-SHA256 | **450**    | 7,221 | 4,194 | 5,853 |
+| RSA-PSS-SHA512 | **29,538** | 37,494 | 34,307 | 35,055 |
+| ECDSA-P256-SHA256 | **54,853** | 63,615 | 60,453 | 60,990 |
+| HMAC-SHA256 | **460**    | 7,186 | 4,257 | 6,347 |
 
 ```mermaid
 xychart-beta horizontal
     title "Verify Performance - RSA & ECDSA (ns/op, lower is better)"
     x-axis ["RSA forcebit", "RSA yaronf", "RSA remitly", "RSA cf", "ECDSA forcebit", "ECDSA yaronf", "ECDSA remitly", "ECDSA cf"]
     y-axis "nanoseconds" 0 --> 70000
-    bar [29730, 37363, 33930, 35244, 55380, 63504, 64433, 60928]
+    bar [29538, 37494, 34307, 35055, 54853, 63615, 60453, 60990]
 ```
 
 ```mermaid
@@ -95,7 +95,7 @@ xychart-beta horizontal
     title "Verify Performance - HMAC (ns/op, lower is better)"
     x-axis ["forcebit", "yaronf", "remitly", "common-fate"]
     y-axis "nanoseconds" 0 --> 8000
-    bar [450, 7221, 4194, 5853]
+    bar [460, 7186, 4257, 6347]
 ```
 
 ### Verify Memory Allocations (B/op)
@@ -133,17 +133,17 @@ xychart-beta horizontal
 ## Key Observations
 
 ### Signing Performance
-1. **RSA-PSS-SHA512**: All libraries perform similarly (~1ms), as cryptographic operations dominate
-2. **ECDSA-P256-SHA256**: forcebit is **15-18% faster** than alternatives
-3. **HMAC-SHA256**: forcebit is **1.8-2.4x faster** than alternatives
+1. **RSA-PSS-SHA512**: forcebit is **fastest** (~923μs), 2-7% faster than alternatives
+2. **ECDSA-P256-SHA256**: forcebit is **13-19% faster** than alternatives
+3. **HMAC-SHA256**: forcebit is **2-2.7x faster** than alternatives
 
 ### Verification Performance
-1. **RSA-PSS-SHA512**: forcebit is **12-26% faster** than alternatives
+1. **RSA-PSS-SHA512**: forcebit is **14-27% faster** than alternatives
 2. **ECDSA-P256-SHA256**: forcebit is **10-16% faster** than alternatives
 3. **HMAC-SHA256**: forcebit is **9-16x faster** than alternatives
 
 ### Memory Efficiency
-- Forcebit consistently uses **40-85% less memory** than alternatives
+- Forcebit consistently uses **35-85% less memory** than alternatives
 - Forcebit makes **50-90% fewer allocations** than alternatives
 - Lower allocation count translates to reduced GC pressure
 
