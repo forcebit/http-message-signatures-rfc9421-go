@@ -1,7 +1,6 @@
 package comparison
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -64,21 +63,6 @@ func createTestRequest() *http.Request {
 	req.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	req.Host = "example.com"
 	return req
-}
-
-// createTestRequestWithBody creates a request and returns it with the body bytes
-func createTestRequestWithBody() (*http.Request, []byte) {
-	body := []byte(`{"message": "hello world", "timestamp": 1234567890}`)
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"https://example.com/api/resource?param=value",
-		bytes.NewReader(body),
-	)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Length", "52")
-	req.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
-	req.Host = "example.com"
-	return req, body
 }
 
 // Components to sign for Forcebit

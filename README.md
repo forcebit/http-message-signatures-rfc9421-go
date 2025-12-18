@@ -1,8 +1,8 @@
 # HTTP Message Signatures (RFC 9421) for Go
 
 
-![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/forcebit/http-message-signatures-rfc9421-go/badges/coverage.json)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=coverage)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/forcebit/http-message-signatures-rfc9421-go)](https://goreportcard.com/report/github.com/forcebit/http-message-signatures-rfc9421-go)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
