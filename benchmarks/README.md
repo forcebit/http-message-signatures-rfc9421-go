@@ -30,24 +30,16 @@ Benchmark comparison of Go implementations of RFC 9421 HTTP Message Signatures.
 
 | Algorithm | forcebit   | yaronf | remitly | common-fate |
 |-----------|------------|--------|---------|-------------|
-| RSA-PSS-SHA512 | 1,012,858  | 965,976 | 978,961 | 952,112 |
-| ECDSA-P256-SHA256 | **25,082** | 29,489 | 28,230 | 29,553 |
-| HMAC-SHA256 | **2,853**  | 5,088 | 5,491 | 6,799 |
+| RSA-PSS-SHA512 | 1,012,858  | 965,976 | 978,961 | **952,112** |
+| ECDSA-P256-SHA256 | **25,082** | 29,489 | 28,230 | 29,553      |
+| HMAC-SHA256 | **2,853**  | 5,088 | 5,491 | 6,799       |
 
 ```mermaid
 xychart-beta horizontal
-    title "Sign Performance - RSA-PSS (ns/op, lower is better)"
-    x-axis ["forcebit", "yaronf", "remitly", "common-fate"]
-    y-axis "nanoseconds" 900000 --> 1050000
-    bar [1012858, 965976, 978961, 952112]
-```
-
-```mermaid
-xychart-beta horizontal
-    title "Sign Performance - ECDSA & HMAC (ns/op, lower is better)"
-    x-axis ["ECDSA forcebit", "ECDSA yaronf", "ECDSA remitly", "ECDSA common-fate", "HMAC forcebit", "HMAC yaronf", "HMAC remitly", "HMAC common-fate"]
-    y-axis "nanoseconds" 0 --> 35000
-    bar [25082, 29489, 28230, 29553, 2853, 5088, 5491, 6799]
+    title "Sign Performance - All Algorithms (ns/op, lower is better)"
+    x-axis ["RSA forcebit", "RSA yaronf", "RSA remitly", "RSA cf", "ECDSA forcebit", "ECDSA yaronf", "ECDSA remitly", "ECDSA cf", "HMAC forcebit", "HMAC yaronf", "HMAC remitly", "HMAC cf"]
+    y-axis "nanoseconds" 0 --> 1100000
+    bar [1012858, 965976, 978961, 952112, 25082, 29489, 28230, 29553, 2853, 5088, 5491, 6799]
 ```
 
 ### Sign Memory Allocations (B/op)
