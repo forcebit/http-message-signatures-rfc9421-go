@@ -164,7 +164,7 @@ func TestParsePrivateKey_Invalid(t *testing.T) {
 		data []byte
 	}{
 		{"random bytes", []byte("this is not a valid key")},
-		{"invalid PEM", []byte("-----BEGIN PRIVATE KEY-----\ninvalid\n-----END PRIVATE KEY-----")},
+		{"invalid PEM", []byte("-----BEGIN PRIVATE KEY-----\n\n-----END PRIVATE KEY-----")},
 		{"corrupted DER", []byte{0x30, 0x82, 0x01, 0x00}}, // Incomplete ASN.1 structure
 	}
 

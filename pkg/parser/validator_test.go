@@ -72,9 +72,8 @@ func TestValidateComponentIdentifier_ReservedComponents(t *testing.T) {
 
 	err := validateComponentIdentifier(comp)
 	if err == nil {
-		t.Error("validateComponentIdentifier(@signature-params) expected error, got nil")
+		t.Fatal("validateComponentIdentifier(@signature-params) expected error, got nil")
 	}
-
 	if !strings.Contains(err.Error(), "auto-generated") {
 		t.Errorf("error should mention auto-generated, got: %v", err)
 	}
@@ -141,9 +140,8 @@ func TestValidateParameterCombinations_BsAndSfMutuallyExclusive(t *testing.T) {
 
 	err := validateComponentIdentifier(comp)
 	if err == nil {
-		t.Error("expected error for bs+sf combination")
+		t.Fatal("expected error for bs+sf combination")
 	}
-
 	if !strings.Contains(err.Error(), "mutually exclusive") {
 		t.Errorf("error should mention mutually exclusive, got: %v", err)
 	}
@@ -162,9 +160,8 @@ func TestValidateParameterCombinations_BsAndKeyMutuallyExclusive(t *testing.T) {
 
 	err := validateComponentIdentifier(comp)
 	if err == nil {
-		t.Error("expected error for bs+key combination")
+		t.Fatal("expected error for bs+key combination")
 	}
-
 	if !strings.Contains(err.Error(), "mutually exclusive") {
 		t.Errorf("error should mention mutually exclusive, got: %v", err)
 	}
@@ -182,9 +179,8 @@ func TestValidateParameterCombinations_KeyRequiresSf(t *testing.T) {
 
 	err := validateComponentIdentifier(comp)
 	if err == nil {
-		t.Error("expected error for key without sf")
+		t.Fatal("expected error for key without sf")
 	}
-
 	if !strings.Contains(err.Error(), "'key' parameter requires 'sf'") {
 		t.Errorf("error should mention key requires sf, got: %v", err)
 	}
