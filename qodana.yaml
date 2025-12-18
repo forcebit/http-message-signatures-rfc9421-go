@@ -1,16 +1,17 @@
 ####################################################################################################################
 # WARNING: Do not store sensitive information in this file, as its contents will be included in the Qodana report. #
 ####################################################################################################################
-
 version: "1.0"
 linter: jetbrains/qodana-go:2025.2
 profile:
   name: qodana.recommended
 include:
   - name: CheckDependencyLicenses
-
 exclude:
   - name: GoDeprecation
     paths:
       - pkg/signing/rsa.go
       - pkg/signing/rsa_test.go
+  - name: HardcodedPasswords
+    paths:
+      - pkg/signing/keys_test.go
