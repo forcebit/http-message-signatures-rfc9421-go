@@ -14,7 +14,7 @@ func TestBuild(t *testing.T) {
 		req, _ := http.NewRequest("POST", "https://example.com/foo", nil)
 		msg := WrapRequest(req)
 
-		components := []parser.ComponentIdentifier{}
+		var components []parser.ComponentIdentifier
 		params := parser.SignatureParams{}
 
 		got, err := Build(msg, components, params)
