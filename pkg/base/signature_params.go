@@ -1,7 +1,7 @@
 package base
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
@@ -36,22 +36,32 @@ func formatSignatureParamsLine(components []parser.ComponentIdentifier, params p
 	// Add signature metadata parameters in canonical order
 	// RFC 9421 Section 2.3 defines the order: created, expires, nonce, alg, keyid, tag
 	if params.Created != nil {
-		sb.WriteString(fmt.Sprintf(";created=%d", *params.Created))
+		sb.WriteString(";created=")
+		sb.WriteString(strconv.FormatInt(*params.Created, 10))
 	}
 	if params.Expires != nil {
-		sb.WriteString(fmt.Sprintf(";expires=%d", *params.Expires))
+		sb.WriteString(";expires=")
+		sb.WriteString(strconv.FormatInt(*params.Expires, 10))
 	}
 	if params.Nonce != nil {
-		sb.WriteString(fmt.Sprintf(`;nonce="%s"`, *params.Nonce))
+		sb.WriteString(`;nonce="`)
+		sb.WriteString(*params.Nonce)
+		sb.WriteString(`"`)
 	}
 	if params.Algorithm != nil {
-		sb.WriteString(fmt.Sprintf(`;alg="%s"`, *params.Algorithm))
+		sb.WriteString(`;alg="`)
+		sb.WriteString(*params.Algorithm)
+		sb.WriteString(`"`)
 	}
 	if params.KeyID != nil {
-		sb.WriteString(fmt.Sprintf(`;keyid="%s"`, *params.KeyID))
+		sb.WriteString(`;keyid="`)
+		sb.WriteString(*params.KeyID)
+		sb.WriteString(`"`)
 	}
 	if params.Tag != nil {
-		sb.WriteString(fmt.Sprintf(`;tag="%s"`, *params.Tag))
+		sb.WriteString(`;tag="`)
+		sb.WriteString(*params.Tag)
+		sb.WriteString(`"`)
 	}
 
 	return sb.String()
@@ -83,41 +93,36 @@ func formatComponentIdentifier(comp parser.ComponentIdentifier) string {
 		sb.WriteString(";")
 		sb.WriteString(param.Key)
 
-		// Boolean true parameters appear as flags (no value)
-		if boolVal, ok := param.Value.(parser.Boolean); ok {
-			if !boolVal.Value {
+		// Use type switch for efficient single dispatch
+		switch v := param.Value.(type) {
+		case parser.Boolean:
+			// Boolean true parameters appear as flags (no value)
+			if !v.Value {
 				// Boolean false is represented with =?0
 				sb.WriteString("=?0")
 			}
 			// Boolean true is just the flag name (no =?1)
-			continue
-		}
 
-		// String parameters appear as key="value"
-		if strVal, ok := param.Value.(parser.String); ok {
+		case parser.String:
+			// String parameters appear as key="value"
 			sb.WriteString(`="`)
-			sb.WriteString(strVal.Value)
+			sb.WriteString(v.Value)
 			sb.WriteString(`"`)
-			continue
-		}
 
-		// Token parameters appear as key=token (no quotes)
-		if tokVal, ok := param.Value.(parser.Token); ok {
+		case parser.Token:
+			// Token parameters appear as key=token (no quotes)
 			sb.WriteString("=")
-			sb.WriteString(tokVal.Value)
-			continue
-		}
+			sb.WriteString(v.Value)
 
-		// Integer parameters appear as key=123
-		if intVal, ok := param.Value.(parser.Integer); ok {
-			sb.WriteString(fmt.Sprintf("=%d", intVal.Value))
-			continue
-		}
+		case parser.Integer:
+			// Integer parameters appear as key=123
+			sb.WriteString("=")
+			sb.WriteString(strconv.FormatInt(v.Value, 10))
 
-		// ByteSequence parameters appear as key=:base64:
-		if bsVal, ok := param.Value.(parser.ByteSequence); ok {
+		case parser.ByteSequence:
+			// ByteSequence parameters appear as key=:base64:
 			sb.WriteString("=:")
-			sb.WriteString(string(bsVal.Value)) // Already base64 encoded
+			sb.WriteString(string(v.Value)) // Already base64 encoded
 			sb.WriteString(":")
 		}
 	}

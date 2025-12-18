@@ -9,6 +9,22 @@ import (
 	"fmt"
 )
 
+// rsaPSSSignOptions defines the PSS options for signing operations.
+// Using PSSSaltLengthEqualsHash (64 bytes for SHA-512) instead of PSSSaltLengthAuto
+// reduces random data generation by ~66% while remaining fully RFC 9421 compliant.
+// RFC 9421 Section 3.3.1: "The salt length (sLen) MUST be at least 64 octets."
+var rsaPSSSignOptions = &rsa.PSSOptions{
+	SaltLength: rsa.PSSSaltLengthEqualsHash,
+	Hash:       crypto.SHA512,
+}
+
+// rsaPSSVerifyOptions defines the PSS options for verification operations.
+// Uses PSSSaltLengthAuto to accept signatures with any valid salt length.
+var rsaPSSVerifyOptions = &rsa.PSSOptions{
+	SaltLength: rsa.PSSSaltLengthAuto,
+	Hash:       crypto.SHA512,
+}
+
 // rsaPSSAlgorithm implements RSA-PSS-SHA512 signature algorithm per RFC 9421 Section 3.3.1.
 //
 // RSA-PSS (Probabilistic Signature Scheme) with SHA-512 hash and MGF1 mask generation
@@ -16,7 +32,7 @@ import (
 //
 // Security properties:
 //   - Uses SHA-512 for both hashing and MGF1
-//   - Salt length is set to PSSSaltLengthAuto (maximum possible, typically 64 bytes)
+//   - Salt length equals hash length (64 bytes) per RFC 9421 minimum requirement
 //   - Requires minimum 2048-bit RSA keys
 //   - Uses crypto/rand.Reader for secure random salt generation
 //
@@ -72,14 +88,8 @@ func (a *rsaPSSAlgorithm) Sign(signatureBase []byte, key interface{}) ([]byte, e
 	// Hash the signature base with SHA-512
 	hash := sha512.Sum512(signatureBase)
 
-	// Sign using RSA-PSS with SHA-512, MGF1, and automatic salt length
-	// PSSSaltLengthAuto uses the maximum salt length for the key size
-	opts := &rsa.PSSOptions{
-		SaltLength: rsa.PSSSaltLengthAuto,
-		Hash:       crypto.SHA512,
-	}
-
-	signature, err := rsa.SignPSS(rand.Reader, rsaKey, crypto.SHA512, hash[:], opts)
+	// Sign using RSA-PSS with SHA-512, MGF1, and hash-length salt (64 bytes)
+	signature, err := rsa.SignPSS(rand.Reader, rsaKey, crypto.SHA512, hash[:], rsaPSSSignOptions)
 	if err != nil {
 		return nil, fmt.Errorf("RSA-PSS signing failed: %w", err)
 	}
@@ -135,13 +145,8 @@ func (a *rsaPSSAlgorithm) Verify(signatureBase, signature []byte, key interface{
 	// Hash the signature base with SHA-512
 	hash := sha512.Sum512(signatureBase)
 
-	// Verify using RSA-PSS with SHA-512, MGF1, and automatic salt length
-	opts := &rsa.PSSOptions{
-		SaltLength: rsa.PSSSaltLengthAuto,
-		Hash:       crypto.SHA512,
-	}
-
-	err := rsa.VerifyPSS(rsaKey, crypto.SHA512, hash[:], signature, opts)
+	// Verify using RSA-PSS with SHA-512, MGF1, and auto salt length (accepts any valid salt)
+	err := rsa.VerifyPSS(rsaKey, crypto.SHA512, hash[:], signature, rsaPSSVerifyOptions)
 	if err != nil {
 		return fmt.Errorf("signature verification failed: %w", err)
 	}

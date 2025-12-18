@@ -14,6 +14,12 @@ import (
 // RFC 9421 Section 2.1: obs-fold is CRLF or LF followed by one or more whitespace characters.
 // This function replaces each sequence of (CRLF|LF) + whitespace with a single space.
 func normalizeLineFolding(s string) string {
+	// Fast path: no folding characters present (99% of cases)
+	if !strings.ContainsAny(s, "\r\n") {
+		return s
+	}
+
+	// Slow path: build normalized string
 	var result strings.Builder
 	result.Grow(len(s))
 
