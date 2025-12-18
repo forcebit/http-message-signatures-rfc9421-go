@@ -36,6 +36,14 @@ Benchmark comparison of Go implementations of RFC 9421 HTTP Message Signatures.
 
 ```mermaid
 xychart-beta horizontal
+    title "Sign Performance - RSA-PSS (ns/op, lower is better)"
+    x-axis ["forcebit", "yaronf", "remitly", "common-fate"]
+    y-axis "nanoseconds" 900000 --> 1050000
+    bar [1012858, 965976, 978961, 952112]
+```
+
+```mermaid
+xychart-beta horizontal
     title "Sign Performance - ECDSA & HMAC (ns/op, lower is better)"
     x-axis ["ECDSA forcebit", "ECDSA yaronf", "ECDSA remitly", "ECDSA common-fate", "HMAC forcebit", "HMAC yaronf", "HMAC remitly", "HMAC common-fate"]
     y-axis "nanoseconds" 0 --> 35000
