@@ -1,7 +1,7 @@
 # HTTP Message Signatures (RFC 9421) for Go
 
-![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/forcebit/http-message-signatures-rfc9421-go/badges/coverage.json)
-[![Go Reference](https://pkg.go.dev/badge/github.com/forcebit/http-message-signatures-rfc9421-go.svg)](https://pkg.go.dev/github.com/forcebit/http-message-signatures-rfc9421-go)
+[![codecov](https://codecov.io/gh/forcebit/http-message-signatures-rfc9421-go/branch/main/graph/badge.svg)](https://codecov.io/gh/forcebit/http-message-signatures-rfc9421-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/forcebit/http-message-signatures-rfc9421-go)](https://goreportcard.com/report/github.com/forcebit/http-message-signatures-rfc9421-go)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A complete Go implementation of [RFC 9421 HTTP Message Signatures](https://datatracker.ietf.org/doc/html/rfc9421) with support for signing, verification, and Content-Digest generation.

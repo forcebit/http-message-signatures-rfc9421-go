@@ -52,8 +52,6 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v6
 
@@ -63,41 +61,13 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Run tests with coverage
-        run: |
-          go test ./... -coverprofile=coverage.out -covermode=atomic
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-          if [ $(echo "$COVERAGE >= 80" | bc) -eq 1 ]; then
-            echo "COLOR=brightgreen" >> $GITHUB_ENV
-          elif [ $(echo "$COVERAGE >= 60" | bc) -eq 1 ]; then
-            echo "COLOR=green" >> $GITHUB_ENV
-          elif [ $(echo "$COVERAGE >= 40" | bc) -eq 1 ]; then
-            echo "COLOR=yellow" >> $GITHUB_ENV
-          else
-            echo "COLOR=red" >> $GITHUB_ENV
-          fi
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
 
-      - name: Update coverage badge
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Try to fetch badges branch, or create orphan if it doesn't exist
-          if git fetch origin badges 2>/dev/null; then
-            git checkout badges
-          else
-            git checkout --orphan badges
-            git rm -rf . 2>/dev/null || true
-          fi
-
-          # Create badge JSON
-          echo '{"schemaVersion":1,"label":"coverage","message":"${{ env.COVERAGE }}%","color":"${{ env.COLOR }}"}' > coverage.json
-
-          # Commit and push
-          git add coverage.json
-          git commit -m "Update coverage: ${{ env.COVERAGE }}%" || true
-          git push origin badges
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          fail_ci_if_error: true
 
   tag:
     runs-on: ubuntu-latest
