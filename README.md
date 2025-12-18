@@ -2,8 +2,10 @@
 
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=coverage)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/forcebit/http-message-signatures-rfc9421-go)](https://goreportcard.com/report/github.com/forcebit/http-message-signatures-rfc9421-go)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=forcebit_http-message-signatures-rfc9421-go&metric=coverage)](https://sonarcloud.io/summary/new_code?id=forcebit_http-message-signatures-rfc9421-go)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A complete Go implementation of [RFC 9421 HTTP Message Signatures](https://datatracker.ietf.org/doc/html/rfc9421) with support for signing, verification, and Content-Digest generation.
@@ -286,9 +288,10 @@ Compared against other Go RFC 9421 implementations ([yaronf/httpsign](https://gi
 
 | Metric | Sign | Verify |
 |--------|------|--------|
-| **ECDSA-P256** | 15-18% faster | 10-16% faster |
-| **HMAC-SHA256** | 1.8-2.4x faster | 9-16x faster |
-| **Memory** | 40-85% less | 40-85% less |
+| **RSA-PSS-SHA512** | 2-7% faster | 14-27% faster |
+| **ECDSA-P256** | 13-19% faster | 10-16% faster |
+| **HMAC-SHA256** | 2-2.7x faster | 9-16x faster |
+| **Memory** | 35-85% less | 35-85% less |
 | **Allocations** | 50-90% fewer | 50-90% fewer |
 
 See [benchmarks/README.md](benchmarks/README.md) for detailed results and methodology.
