@@ -210,12 +210,12 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 	if useSF {
 		// Parse the raw value as a Structured Field
 		// Try parsing as dictionary first, then as item
-		parser := sfv.NewParser(rawValue, sfv.DefaultLimits())
+		sfvParser := sfv.NewParser(rawValue, sfv.DefaultLimits())
 
 		// If key parameter is specified, we're extracting a dictionary member
 		if keyName != "" {
 			// Parse as dictionary (FR-013)
-			dict, err := parser.ParseDictionary()
+			dict, err := sfvParser.ParseDictionary()
 			if err != nil {
 				return "", fmt.Errorf("component %q: failed to parse as structured field dictionary: %w", comp.Name, err)
 			}
@@ -249,7 +249,7 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 
 		// No key parameter - serialize the entire field
 		// Try dictionary first (most common for structured fields)
-		dict, dictErr := parser.ParseDictionary()
+		dict, dictErr := sfvParser.ParseDictionary()
 		if dictErr == nil {
 			serialized, err := sfv.SerializeDictionary(dict)
 			if err != nil {
@@ -259,8 +259,8 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 		}
 
 		// Try parsing as item (single value)
-		parser = sfv.NewParser(rawValue, sfv.DefaultLimits())
-		item, itemErr := parser.ParseItem()
+		sfvParser = sfv.NewParser(rawValue, sfv.DefaultLimits())
+		item, itemErr := sfvParser.ParseItem()
 		if itemErr == nil {
 			serialized, err := sfv.SerializeItem(*item)
 			if err != nil {
