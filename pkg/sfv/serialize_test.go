@@ -668,3 +668,146 @@ func TestRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestSerializeList(t *testing.T) {
+	tests := []struct {
+		name    string
+		list    List
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "empty list",
+			list: List{Members: nil},
+			want: "",
+		},
+		{
+			name: "single item",
+			list: List{
+				Members: []interface{}{
+					Item{Value: "foo", Parameters: nil},
+				},
+			},
+			want: "foo",
+		},
+		{
+			name: "multiple items",
+			list: List{
+				Members: []interface{}{
+					Item{Value: "a", Parameters: nil},
+					Item{Value: "b", Parameters: nil},
+					Item{Value: "c", Parameters: nil},
+				},
+			},
+			want: "a, b, c",
+		},
+		{
+			name: "items with parameters",
+			list: List{
+				Members: []interface{}{
+					Item{Value: "a", Parameters: []Parameter{{Key: "p", Value: int64(1)}}},
+					Item{Value: "b", Parameters: []Parameter{{Key: "q", Value: int64(2)}}},
+				},
+			},
+			want: "a;p=1, b;q=2",
+		},
+		{
+			name: "inner list member",
+			list: List{
+				Members: []interface{}{
+					InnerList{
+						Items:      []Item{{Value: "a", Parameters: nil}, {Value: "b", Parameters: nil}},
+						Parameters: nil,
+					},
+				},
+			},
+			want: "(a b)",
+		},
+		{
+			name: "multiple inner lists",
+			list: List{
+				Members: []interface{}{
+					InnerList{
+						Items:      []Item{{Value: "a", Parameters: nil}, {Value: "b", Parameters: nil}},
+						Parameters: nil,
+					},
+					InnerList{
+						Items:      []Item{{Value: "c", Parameters: nil}, {Value: "d", Parameters: nil}},
+						Parameters: nil,
+					},
+				},
+			},
+			want: "(a b), (c d)",
+		},
+		{
+			name: "mixed items and inner lists",
+			list: List{
+				Members: []interface{}{
+					Item{Value: "foo", Parameters: nil},
+					InnerList{
+						Items:      []Item{{Value: "a", Parameters: nil}, {Value: "b", Parameters: nil}},
+						Parameters: nil,
+					},
+					Item{Value: "bar", Parameters: nil},
+				},
+			},
+			want: "foo, (a b), bar",
+		},
+		{
+			name: "integer items",
+			list: List{
+				Members: []interface{}{
+					Item{Value: int64(1), Parameters: nil},
+					Item{Value: int64(2), Parameters: nil},
+					Item{Value: int64(3), Parameters: nil},
+				},
+			},
+			want: "1, 2, 3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := SerializeList(&tt.list)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SerializeList() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("SerializeList() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestListRoundTrip(t *testing.T) {
+	tests := []string{
+		"a, b, c",
+		"1, 2, 3",
+		"(a b), (c d)",
+		"foo;p=1, bar;q=2",
+		"(a b);x=1, (c d);y=2",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			// Parse
+			p := NewParser(input, DefaultLimits())
+			list, err := p.ParseList()
+			if err != nil {
+				t.Fatalf("ParseList() error = %v", err)
+			}
+
+			// Serialize
+			got, err := SerializeList(list)
+			if err != nil {
+				t.Fatalf("SerializeList() error = %v", err)
+			}
+
+			// Compare
+			if got != input {
+				t.Errorf("Round trip failed:\n  input:  %q\n  output: %q", input, got)
+			}
+		})
+	}
+}

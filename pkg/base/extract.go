@@ -265,6 +265,17 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 			return serialized, nil
 		}
 
+		// Try parsing as list
+		sfvParser = sfv.NewParser(rawValue, sfv.DefaultLimits())
+		list, listErr := sfvParser.ParseList()
+		if listErr == nil {
+			serialized, err := sfv.SerializeList(list)
+			if err != nil {
+				return "", fmt.Errorf("component %q: failed to serialize structured field list: %w", comp.Name, err)
+			}
+			return serialized, nil
+		}
+
 		// Try parsing as item (single value)
 		sfvParser = sfv.NewParser(rawValue, sfv.DefaultLimits())
 		item, itemErr := sfvParser.ParseItem()
@@ -276,9 +287,9 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 			return serialized, nil
 		}
 
-		// If both parsing attempts failed, return the dictionary error (more likely use case)
+		// If all parsing attempts failed, return a combined error
 		//nolint:errorlint // Only one error can be wrapped per fmt.Errorf; wrapping itemErr as it's the last attempt
-		return "", fmt.Errorf("component %q: failed to parse as structured field (dict error: %v, item error: %w)", comp.Name, dictErr, itemErr)
+		return "", fmt.Errorf("component %q: failed to parse as structured field (dict: %v, list: %v, item: %w)", comp.Name, dictErr, listErr, itemErr)
 	}
 
 	// BS Parameter: Base64-encode as byte sequence (FR-012)

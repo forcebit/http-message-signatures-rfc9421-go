@@ -119,6 +119,43 @@ func SerializeDictionary(dict *Dictionary) (string, error) {
 	return sb.String(), nil
 }
 
+// SerializeList serializes an RFC 8941 List to its canonical string representation.
+// Format: member1, member2, ...
+func SerializeList(list *List) (string, error) {
+	if len(list.Members) == 0 {
+		return "", nil
+	}
+
+	var sb strings.Builder
+
+	for i, member := range list.Members {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+
+		switch v := member.(type) {
+		case Item:
+			itemStr, err := SerializeItem(v)
+			if err != nil {
+				return "", err
+			}
+			sb.WriteString(itemStr)
+
+		case InnerList:
+			innerListStr, err := SerializeInnerList(v)
+			if err != nil {
+				return "", err
+			}
+			sb.WriteString(innerListStr)
+
+		default:
+			return "", fmt.Errorf("invalid list member type: %T", member)
+		}
+	}
+
+	return sb.String(), nil
+}
+
 // serializeBareItem serializes a bare item value to its canonical string representation.
 func serializeBareItem(value interface{}) (string, error) {
 	switch v := value.(type) {

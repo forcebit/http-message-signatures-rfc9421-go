@@ -8,6 +8,12 @@ type InnerList struct {
 	Parameters []Parameter
 }
 
+// List represents an RFC 8941 list (sequence of members).
+// Members can be Items or InnerLists.
+type List struct {
+	Members []interface{} // Each member is Item or InnerList
+}
+
 // Dictionary represents an RFC 8941 dictionary (ordered map).
 // Preserves insertion order via Keys slice.
 // Last instance wins for duplicate keys.
