@@ -23,7 +23,7 @@ func (p *Parser) parseParameters() ([]Parameter, error) {
 		p.offset++ // consume ';'
 
 		// Parse parameter key (token)
-		key, err := p.parseToken()
+		keyToken, err := p.parseToken()
 		if err != nil {
 			return nil, err
 		}
@@ -35,6 +35,7 @@ func (p *Parser) parseParameters() ([]Parameter, error) {
 			p.offset++ // consume '='
 
 			// Parse parameter value (bare item)
+			// Note: parseBareItem returns Token for tokens, string for quoted strings
 			value, err = p.parseBareItem()
 			if err != nil {
 				return nil, err
@@ -42,7 +43,7 @@ func (p *Parser) parseParameters() ([]Parameter, error) {
 		}
 
 		params = append(params, Parameter{
-			Key:   key,
+			Key:   keyToken.Value,
 			Value: value,
 		})
 	}

@@ -224,8 +224,8 @@ func TestParser_parseToken(t *testing.T) {
 				t.Errorf("parseToken() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && got != tt.want {
-				t.Errorf("parseToken() = %q, want %q", got, tt.want)
+			if !tt.wantErr && got.Value != tt.want {
+				t.Errorf("parseToken() = %q, want %q", got.Value, tt.want)
 			}
 		})
 	}
@@ -618,17 +618,17 @@ func FuzzParseToken(f *testing.F) {
 
 		// If both succeeded, results must match
 		if err1 == nil && err2 == nil {
-			if result1 != result2 {
-				t.Errorf("Non-deterministic value for input %q:\nFirst:  %q\nSecond: %q", input, result1, result2)
+			if result1.Value != result2.Value {
+				t.Errorf("Non-deterministic value for input %q:\nFirst:  %q\nSecond: %q", input, result1.Value, result2.Value)
 			}
 
 			// Validate token syntax if succeeded
-			if len(result1) == 0 {
+			if len(result1.Value) == 0 {
 				t.Errorf("parseToken returned empty token for input %q", input)
 			}
 
 			// First character must be alpha or *
-			first := result1[0]
+			first := result1.Value[0]
 			if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '*') {
 				t.Errorf("Invalid token first character for input %q: %c", input, first)
 			}

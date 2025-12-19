@@ -100,7 +100,12 @@ func TestParser_parseParameters(t *testing.T) {
 				for _, param := range got {
 					if param.Key == key {
 						found = true
-						if param.Value != wantVal {
+						// Handle Token type comparison
+						gotVal := param.Value
+						if tok, ok := gotVal.(Token); ok {
+							gotVal = tok.Value
+						}
+						if gotVal != wantVal {
 							t.Errorf("parameter %q value = %v (type %T), want %v (type %T)",
 								key, param.Value, param.Value, wantVal, wantVal)
 						}
@@ -298,7 +303,7 @@ func FuzzParseParameters(f *testing.F) {
 
 				// Value should be one of the valid types (or boolean true for bare params)
 				switch param.Value.(type) {
-				case bool, int64, string, []byte:
+				case bool, int64, string, []byte, Token:
 					// Valid types
 				default:
 					t.Errorf("Unexpected parameter value type at index %d for input %q: %T",

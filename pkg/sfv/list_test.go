@@ -128,8 +128,11 @@ func TestParseList_MemberTypes(t *testing.T) {
 			t.Fatalf("member is %T, want Item", list.Members[0])
 		}
 
-		if item.Value != "foo" {
-			t.Errorf("item value = %v, want foo", item.Value)
+		tok, ok := item.Value.(Token)
+		if !ok {
+			t.Errorf("item value = %T, want Token", item.Value)
+		} else if tok.Value != "foo" {
+			t.Errorf("item value = %v, want foo", tok.Value)
 		}
 
 		if len(item.Parameters) != 1 || item.Parameters[0].Key != "p" {

@@ -54,10 +54,11 @@ func (p *Parser) ParseDictionary() (*Dictionary, error) {
 		}
 
 		// Parse key (token)
-		key, err := p.parseToken()
+		keyToken, err := p.parseToken()
 		if err != nil {
 			return nil, err
 		}
+		key := keyToken.Value
 
 		// RFC 8941: No OWS allowed between key and '=' or between '=' and value
 		// Check for invalid whitespace before '='

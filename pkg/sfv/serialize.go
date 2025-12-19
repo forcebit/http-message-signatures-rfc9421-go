@@ -174,14 +174,12 @@ func serializeBareItem(value interface{}) (string, error) {
 		// Integer: decimal representation
 		return strconv.Itoa(v), nil
 
+	case Token:
+		// Token: serialize as bare token (unquoted)
+		return v.Value, nil
+
 	case string:
-		// Check if this is a valid token (unquoted identifier)
-		// RFC 8941: Tokens start with alpha or * and contain alphanumeric, *, _, -, ., :, /, or %
-		if isValidToken(v) {
-			// Serialize as token (unquoted)
-			return v, nil
-		}
-		// Otherwise, serialize as quoted string with escape sequences
+		// String: serialize as quoted string with escape sequences
 		return SerializeString(v), nil
 
 	case []byte:

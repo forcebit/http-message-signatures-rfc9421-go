@@ -6,6 +6,12 @@ import (
 	"strconv"
 )
 
+// Token represents an RFC 8941 token (unquoted identifier).
+// Tokens are distinct from strings: they are serialized without quotes.
+type Token struct {
+	Value string
+}
+
 // parseBoolean parses an RFC 8941 boolean: ?0 (false) or ?1 (true).
 func (p *Parser) parseBoolean() (bool, error) {
 	if !p.consume('?') {
@@ -113,17 +119,18 @@ func (p *Parser) parseString() (string, error) {
 
 // parseToken parses an RFC 8941 token (unquoted identifier).
 // Must start with alpha or *, followed by allowed chars.
-func (p *Parser) parseToken() (string, error) {
+// Returns Token type to distinguish from quoted strings.
+func (p *Parser) parseToken() (Token, error) {
 	start := p.offset
 
 	if p.isEOF() {
-		return "", p.newParseError("expected token, got EOF")
+		return Token{}, p.newParseError("expected token, got EOF")
 	}
 
 	// First character: must be alpha or *
 	c := p.data[p.offset]
 	if !isAlpha(c) && c != '*' {
-		return "", p.newParseError("token must start with letter or *")
+		return Token{}, p.newParseError("token must start with letter or *")
 	}
 	p.offset++
 
@@ -138,17 +145,17 @@ func (p *Parser) parseToken() (string, error) {
 	}
 
 	if p.offset == start {
-		return "", p.newParseError("empty token")
+		return Token{}, p.newParseError("empty token")
 	}
 
 	tokenLen := p.offset - start
 	// Check token length limit
 	if p.limits.MaxTokenLength > 0 && tokenLen > p.limits.MaxTokenLength {
-		return "", p.newParseError(fmt.Sprintf("token length %d exceeds limit %d",
+		return Token{}, p.newParseError(fmt.Sprintf("token length %d exceeds limit %d",
 			tokenLen, p.limits.MaxTokenLength))
 	}
 
-	return p.data[start:p.offset], nil
+	return Token{Value: p.data[start:p.offset]}, nil
 }
 
 // parseByteSequence parses an RFC 8941 byte sequence (:base64:).

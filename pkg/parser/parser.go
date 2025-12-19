@@ -213,9 +213,11 @@ func convertBareItem(value interface{}) BareItem {
 		return Boolean{Value: v}
 	case int64:
 		return Integer{Value: v}
+	case sfv.Token:
+		// Token: unquoted identifier (preserved from parsing)
+		return Token{Value: v.Value}
 	case string:
-		// Distinguish between string and token based on context
-		// For now, treat strings as String type
+		// String: quoted string value
 		return String{Value: v}
 	case []byte:
 		return ByteSequence{Value: v}

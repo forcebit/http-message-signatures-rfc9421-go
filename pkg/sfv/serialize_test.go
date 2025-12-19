@@ -33,12 +33,12 @@ func TestSerializeItem(t *testing.T) {
 		},
 		{
 			name: "token (valid identifier)",
-			item: Item{Value: "application/json", Parameters: nil},
+			item: Item{Value: Token{Value: "application/json"}, Parameters: nil},
 			want: "application/json",
 		},
 		{
 			name: "token with special chars",
-			item: Item{Value: "text/html:level-1", Parameters: nil},
+			item: Item{Value: Token{Value: "text/html:level-1"}, Parameters: nil},
 			want: "text/html:level-1",
 		},
 		{
@@ -59,7 +59,7 @@ func TestSerializeItem(t *testing.T) {
 		{
 			name: "item with boolean parameter",
 			item: Item{
-				Value: "test",
+				Value: Token{Value: "test"},
 				Parameters: []Parameter{
 					{Key: "flag", Value: true},
 				},
@@ -69,9 +69,9 @@ func TestSerializeItem(t *testing.T) {
 		{
 			name: "item with string parameter",
 			item: Item{
-				Value: "test",
+				Value: Token{Value: "test"},
 				Parameters: []Parameter{
-					{Key: "name", Value: "value"},
+					{Key: "name", Value: Token{Value: "value"}},
 				},
 			},
 			want: "test;name=value",
@@ -82,7 +82,7 @@ func TestSerializeItem(t *testing.T) {
 				Value: 123,
 				Parameters: []Parameter{
 					{Key: "a", Value: true},
-					{Key: "b", Value: "text"},
+					{Key: "b", Value: Token{Value: "text"}},
 					{Key: "c", Value: int64(456)},
 				},
 			},
@@ -94,7 +94,7 @@ func TestSerializeItem(t *testing.T) {
 				Value: 123,
 				Parameters: []Parameter{
 					{Key: "a", Value: false},
-					{Key: "b", Value: "text"},
+					{Key: "b", Value: Token{Value: "text"}},
 					{Key: "c", Value: int64(456)},
 				},
 			},
@@ -154,7 +154,7 @@ func TestSerializeInnerList(t *testing.T) {
 			name: "items with mixed types",
 			list: InnerList{
 				Items: []Item{
-					{Value: "token", Parameters: nil},
+					{Value: Token{Value: "token"}, Parameters: nil},
 					{Value: int64(42), Parameters: nil},
 					{Value: true, Parameters: nil},
 				},
@@ -180,9 +180,9 @@ func TestSerializeInnerList(t *testing.T) {
 			name: "items with item parameters",
 			list: InnerList{
 				Items: []Item{
-					{Value: "a", Parameters: []Parameter{{Key: "x", Value: int64(1)}}},
-					{Value: "b", Parameters: []Parameter{{Key: "y", Value: int64(2)}}},
-					{Value: "c", Parameters: []Parameter{{Key: "z", Value: false}}},
+					{Value: Token{Value: "a"}, Parameters: []Parameter{{Key: "x", Value: int64(1)}}},
+					{Value: Token{Value: "b"}, Parameters: []Parameter{{Key: "y", Value: int64(2)}}},
+					{Value: Token{Value: "c"}, Parameters: []Parameter{{Key: "z", Value: false}}},
 				},
 				Parameters: nil,
 			},
@@ -243,7 +243,7 @@ func TestSerializeDictionary(t *testing.T) {
 				Keys: []string{"a", "b", "d"},
 				Values: map[string]interface{}{
 					"a": Item{Value: int64(2), Parameters: nil},
-					"b": Item{Value: "b-string", Parameters: nil},
+					"b": Item{Value: Token{Value: "b-string"}, Parameters: nil},
 					"c": Item{Value: true, Parameters: nil},
 					"d": Item{Value: false, Parameters: nil},
 				},
@@ -256,7 +256,7 @@ func TestSerializeDictionary(t *testing.T) {
 				Keys: []string{"flag", "other"},
 				Values: map[string]interface{}{
 					"flag":  Item{Value: true, Parameters: nil},
-					"other": Item{Value: "value", Parameters: nil},
+					"other": Item{Value: Token{Value: "value"}, Parameters: nil},
 				},
 			},
 			want: "flag, other=value",
@@ -292,7 +292,7 @@ func TestSerializeDictionary(t *testing.T) {
 			dict: &Dictionary{
 				Keys: []string{"a", "b", "c"},
 				Values: map[string]interface{}{
-					"a": Item{Value: "token", Parameters: nil},
+					"a": Item{Value: Token{Value: "token"}, Parameters: nil},
 					"b": InnerList{
 						Items:      []Item{{Value: int64(1), Parameters: nil}},
 						Parameters: nil,
@@ -522,7 +522,7 @@ func TestSerializeBareItem(t *testing.T) {
 		},
 		{
 			name:  "token string",
-			value: "token",
+			value: Token{Value: "token"},
 			want:  "token",
 		},
 		{
@@ -585,7 +585,7 @@ func TestSerializeParameters(t *testing.T) {
 		{
 			name: "single string parameter",
 			params: []Parameter{
-				{Key: "name", Value: "value"},
+				{Key: "name", Value: Token{Value: "value"}},
 			},
 			want: ";name=value",
 		},
@@ -600,7 +600,7 @@ func TestSerializeParameters(t *testing.T) {
 			name: "multiple mixed parameters",
 			params: []Parameter{
 				{Key: "a", Value: true},
-				{Key: "b", Value: "text"},
+				{Key: "b", Value: Token{Value: "text"}},
 				{Key: "c", Value: int64(123)},
 				{Key: "d", Value: false},
 			},
@@ -685,7 +685,7 @@ func TestSerializeList(t *testing.T) {
 			name: "single item",
 			list: List{
 				Members: []interface{}{
-					Item{Value: "foo", Parameters: nil},
+					Item{Value: Token{Value: "foo"}, Parameters: nil},
 				},
 			},
 			want: "foo",
@@ -694,9 +694,9 @@ func TestSerializeList(t *testing.T) {
 			name: "multiple items",
 			list: List{
 				Members: []interface{}{
-					Item{Value: "a", Parameters: nil},
-					Item{Value: "b", Parameters: nil},
-					Item{Value: "c", Parameters: nil},
+					Item{Value: Token{Value: "a"}, Parameters: nil},
+					Item{Value: Token{Value: "b"}, Parameters: nil},
+					Item{Value: Token{Value: "c"}, Parameters: nil},
 				},
 			},
 			want: "a, b, c",
@@ -705,8 +705,8 @@ func TestSerializeList(t *testing.T) {
 			name: "items with parameters",
 			list: List{
 				Members: []interface{}{
-					Item{Value: "a", Parameters: []Parameter{{Key: "p", Value: int64(1)}}},
-					Item{Value: "b", Parameters: []Parameter{{Key: "q", Value: int64(2)}}},
+					Item{Value: Token{Value: "a"}, Parameters: []Parameter{{Key: "p", Value: int64(1)}}},
+					Item{Value: Token{Value: "b"}, Parameters: []Parameter{{Key: "q", Value: int64(2)}}},
 				},
 			},
 			want: "a;p=1, b;q=2",
@@ -716,7 +716,7 @@ func TestSerializeList(t *testing.T) {
 			list: List{
 				Members: []interface{}{
 					InnerList{
-						Items:      []Item{{Value: "a", Parameters: nil}, {Value: "b", Parameters: nil}},
+						Items:      []Item{{Value: Token{Value: "a"}, Parameters: nil}, {Value: Token{Value: "b"}, Parameters: nil}},
 						Parameters: nil,
 					},
 				},
@@ -728,11 +728,11 @@ func TestSerializeList(t *testing.T) {
 			list: List{
 				Members: []interface{}{
 					InnerList{
-						Items:      []Item{{Value: "a", Parameters: nil}, {Value: "b", Parameters: nil}},
+						Items:      []Item{{Value: Token{Value: "a"}, Parameters: nil}, {Value: Token{Value: "b"}, Parameters: nil}},
 						Parameters: nil,
 					},
 					InnerList{
-						Items:      []Item{{Value: "c", Parameters: nil}, {Value: "d", Parameters: nil}},
+						Items:      []Item{{Value: Token{Value: "c"}, Parameters: nil}, {Value: Token{Value: "d"}, Parameters: nil}},
 						Parameters: nil,
 					},
 				},
@@ -743,12 +743,12 @@ func TestSerializeList(t *testing.T) {
 			name: "mixed items and inner lists",
 			list: List{
 				Members: []interface{}{
-					Item{Value: "foo", Parameters: nil},
+					Item{Value: Token{Value: "foo"}, Parameters: nil},
 					InnerList{
-						Items:      []Item{{Value: "a", Parameters: nil}, {Value: "b", Parameters: nil}},
+						Items:      []Item{{Value: Token{Value: "a"}, Parameters: nil}, {Value: Token{Value: "b"}, Parameters: nil}},
 						Parameters: nil,
 					},
-					Item{Value: "bar", Parameters: nil},
+					Item{Value: Token{Value: "bar"}, Parameters: nil},
 				},
 			},
 			want: "foo, (a b), bar",

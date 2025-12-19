@@ -95,8 +95,11 @@ func TestParser_parseBareItem(t *testing.T) {
 					t.Errorf("parseBareItem() = %v, want %v", got, tt.wantVal)
 				}
 			case "token":
-				if got != tt.wantVal.(string) {
-					t.Errorf("parseBareItem() = %v, want %v", got, tt.wantVal)
+				tok, ok := got.(Token)
+				if !ok {
+					t.Errorf("parseBareItem() = %T, want Token", got)
+				} else if tok.Value != tt.wantVal.(string) {
+					t.Errorf("parseBareItem() = %v, want %v", tok.Value, tt.wantVal)
 				}
 			case "bytes":
 				if !bytes.Equal(got.([]byte), tt.wantVal.([]byte)) {
@@ -262,7 +265,7 @@ func FuzzParseBareItem(f *testing.F) {
 		if err1 == nil {
 			// Result must be one of the valid types
 			switch result1.(type) {
-			case bool, int64, string, []byte:
+			case bool, int64, string, []byte, Token:
 				// Valid types
 			default:
 				t.Errorf("Unexpected result type for input %q: %T", input, result1)
@@ -282,6 +285,8 @@ func getType(v interface{}) string {
 		return "string"
 	case []byte:
 		return "[]byte"
+	case Token:
+		return "Token"
 	default:
 		return "unknown"
 	}
@@ -310,6 +315,9 @@ func itemsEqual(a, b interface{}) bool {
 			}
 		}
 		return true
+	case Token:
+		vb, ok := b.(Token)
+		return ok && va.Value == vb.Value
 	}
 	return false
 }

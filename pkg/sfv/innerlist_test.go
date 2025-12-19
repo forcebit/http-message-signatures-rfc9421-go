@@ -86,8 +86,14 @@ func TestParser_parseInnerList(t *testing.T) {
 			}
 
 			for i, want := range tt.wantItems {
-				if items[i].Value != want {
-					t.Errorf("parseInnerList() items[%d] = %v, want %v", i, items[i].Value, want)
+				got := items[i].Value
+				// Handle Token type: compare inner value
+				if tok, ok := got.(Token); ok {
+					if tok.Value != want {
+						t.Errorf("parseInnerList() items[%d] = %v, want %v", i, tok.Value, want)
+					}
+				} else if got != want {
+					t.Errorf("parseInnerList() items[%d] = %v, want %v", i, got, want)
 				}
 			}
 
