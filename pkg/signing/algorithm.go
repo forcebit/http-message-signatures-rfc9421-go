@@ -55,7 +55,10 @@
 // See https://www.rfc-editor.org/rfc/rfc9421.html for the complete specification.
 package signing
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // Algorithm represents a cryptographic signature algorithm as defined in RFC 9421 Section 3.3.
 //
@@ -150,13 +153,22 @@ type Algorithm interface {
 
 // algorithmRegistry is the global registry of all supported algorithms.
 // Algorithms register themselves in their init() functions.
-var algorithmRegistry = make(map[string]Algorithm)
+// Protected by algorithmRegistryMu for concurrent access safety.
+var (
+	algorithmRegistry   = make(map[string]Algorithm)
+	algorithmRegistryMu sync.RWMutex
+)
 
 // RegisterAlgorithm registers an algorithm implementation in the global registry.
-// This is called by each algorithm's init() function.
+// This is called by each algorithm's init() function but may also be called
+// at runtime to register custom algorithms. This function is safe for concurrent use.
 // Returns an error if the algorithm ID is already registered.
 func RegisterAlgorithm(alg Algorithm) error {
 	id := alg.ID()
+
+	algorithmRegistryMu.Lock()
+	defer algorithmRegistryMu.Unlock()
+
 	if _, exists := algorithmRegistry[id]; exists {
 		return fmt.Errorf("algorithm %q already registered", id)
 	}
@@ -200,7 +212,10 @@ func GetAlgorithm(id string) (Algorithm, error) {
 		return nil, fmt.Errorf("algorithm ID cannot be empty")
 	}
 
+	algorithmRegistryMu.RLock()
 	alg, exists := algorithmRegistry[id]
+	algorithmRegistryMu.RUnlock()
+
 	if !exists {
 		return nil, fmt.Errorf("unsupported algorithm: %q", id)
 	}
@@ -228,6 +243,9 @@ func GetAlgorithm(id string) (Algorithm, error) {
 //	    fmt.Println("Supported:", algID)
 //	}
 func SupportedAlgorithms() []string {
+	algorithmRegistryMu.RLock()
+	defer algorithmRegistryMu.RUnlock()
+
 	algorithms := make([]string, 0, len(algorithmRegistry))
 	for id := range algorithmRegistry {
 		algorithms = append(algorithms, id)
