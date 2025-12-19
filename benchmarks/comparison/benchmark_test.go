@@ -35,7 +35,7 @@ import (
 // =============================================================================
 
 func BenchmarkSign_RSAPSS_Forcebit(b *testing.B) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "rsa-pss-sha512",
 		Key:        testRSAPrivKey,
 		KeyID:      "test-key-rsa",
@@ -50,7 +50,7 @@ func BenchmarkSign_RSAPSS_Forcebit(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		req := createTestRequest()
-		_, _ = signer.SignRequest(req)
+		_, _ = fbSigner.SignRequest(req)
 	}
 }
 
@@ -112,7 +112,7 @@ func BenchmarkSign_RSAPSS_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkVerify_RSAPSS_Forcebit(b *testing.B) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "rsa-pss-sha512",
 		Key:        testRSAPrivKey,
 		KeyID:      "test-key-rsa",
@@ -124,11 +124,11 @@ func BenchmarkVerify_RSAPSS_Forcebit(b *testing.B) {
 	}
 
 	req := createTestRequest()
-	if _, err := signer.SignRequest(req); err != nil {
+	if _, err := fbSigner.SignRequest(req); err != nil {
 		b.Fatalf("failed to sign request: %v", err)
 	}
 
-	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+	fbVerifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
 		Key:              testRSAPubKey,
 		Algorithm:        "rsa-pss-sha512",
 		ParamsValidation: benchmarkValidationOptions(),
@@ -140,7 +140,7 @@ func BenchmarkVerify_RSAPSS_Forcebit(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, _ = verifier.VerifyRequest(req)
+		_, _ = fbVerifier.VerifyRequest(req)
 	}
 }
 
@@ -235,7 +235,7 @@ func BenchmarkVerify_RSAPSS_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkSign_ECDSA_Forcebit(b *testing.B) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "ecdsa-p256-sha256",
 		Key:        testECPrivKey,
 		KeyID:      "test-key-ecdsa",
@@ -250,7 +250,7 @@ func BenchmarkSign_ECDSA_Forcebit(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		req := createTestRequest()
-		_, _ = signer.SignRequest(req)
+		_, _ = fbSigner.SignRequest(req)
 	}
 }
 
@@ -312,7 +312,7 @@ func BenchmarkSign_ECDSA_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkVerify_ECDSA_Forcebit(b *testing.B) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "ecdsa-p256-sha256",
 		Key:        testECPrivKey,
 		KeyID:      "test-key-ecdsa",
@@ -324,11 +324,11 @@ func BenchmarkVerify_ECDSA_Forcebit(b *testing.B) {
 	}
 
 	req := createTestRequest()
-	if _, err := signer.SignRequest(req); err != nil {
+	if _, err := fbSigner.SignRequest(req); err != nil {
 		b.Fatalf("failed to sign request: %v", err)
 	}
 
-	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+	fbVerifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
 		Key:              testECPubKey,
 		Algorithm:        "ecdsa-p256-sha256",
 		ParamsValidation: benchmarkValidationOptions(),
@@ -340,7 +340,7 @@ func BenchmarkVerify_ECDSA_Forcebit(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, _ = verifier.VerifyRequest(req)
+		_, _ = fbVerifier.VerifyRequest(req)
 	}
 }
 
@@ -435,7 +435,7 @@ func BenchmarkVerify_ECDSA_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkSign_HMAC_Forcebit(b *testing.B) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "hmac-sha256",
 		Key:        testHMACKey,
 		KeyID:      "test-key-hmac",
@@ -450,7 +450,7 @@ func BenchmarkSign_HMAC_Forcebit(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		req := createTestRequest()
-		_, _ = signer.SignRequest(req)
+		_, _ = fbSigner.SignRequest(req)
 	}
 }
 
@@ -512,7 +512,7 @@ func BenchmarkSign_HMAC_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkVerify_HMAC_Forcebit(b *testing.B) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "hmac-sha256",
 		Key:        testHMACKey,
 		KeyID:      "test-key-hmac",
@@ -524,11 +524,11 @@ func BenchmarkVerify_HMAC_Forcebit(b *testing.B) {
 	}
 
 	req := createTestRequest()
-	if _, err := signer.SignRequest(req); err != nil {
+	if _, err := fbSigner.SignRequest(req); err != nil {
 		b.Fatalf("failed to sign request: %v", err)
 	}
 
-	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+	fbVerifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
 		Key:              testHMACKey,
 		Algorithm:        "hmac-sha256",
 		ParamsValidation: benchmarkValidationOptions(),
@@ -540,7 +540,7 @@ func BenchmarkVerify_HMAC_Forcebit(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, _ = verifier.VerifyRequest(req)
+		_, _ = fbVerifier.VerifyRequest(req)
 	}
 }
 
@@ -635,7 +635,7 @@ func BenchmarkVerify_HMAC_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkSign_HMAC_ContentDigest_10MB_Forcebit(b *testing.B) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "hmac-sha256",
 		Key:        testHMACKey,
 		KeyID:      "test-key-hmac",
@@ -662,7 +662,7 @@ func BenchmarkSign_HMAC_ContentDigest_10MB_Forcebit(b *testing.B) {
 		})
 		req.Header.Set("Content-Digest", header)
 
-		_, _ = signer.SignRequest(req)
+		_, _ = fbSigner.SignRequest(req)
 	}
 }
 
@@ -827,7 +827,7 @@ func BenchmarkSign_AllLibraries_HMAC_ContentDigest_10MB(b *testing.B) {
 // =============================================================================
 
 func TestSign_Forcebit(t *testing.T) {
-	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+	fbSigner, err := httpsig.NewSigner(httpsig.SignerOptions{
 		Algorithm:  "rsa-pss-sha512",
 		Key:        testRSAPrivKey,
 		KeyID:      "test-key-rsa",
@@ -839,12 +839,12 @@ func TestSign_Forcebit(t *testing.T) {
 	}
 
 	req := createTestRequest()
-	headers, err := signer.SignRequest(req)
+	headers, err := fbSigner.SignRequest(req)
 	if err != nil {
 		t.Fatalf("failed to sign request: %v", err)
 	}
 
-	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+	fbVerifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
 		Key:              testRSAPubKey,
 		Algorithm:        "rsa-pss-sha512",
 		ParamsValidation: benchmarkValidationOptions(),
@@ -853,7 +853,7 @@ func TestSign_Forcebit(t *testing.T) {
 		t.Fatalf("failed to create verifier: %v", err)
 	}
 
-	if _, err := verifier.VerifyRequest(req); err != nil {
+	if _, err := fbVerifier.VerifyRequest(req); err != nil {
 		t.Fatalf("failed to verify: %v", err)
 	}
 
