@@ -1374,3 +1374,85 @@ func TestServerSideRequestDerivedComponents(t *testing.T) {
 		}
 	})
 }
+
+// TestPathPercentEncodingPreservation tests that @path and @request-target
+// preserve percent-encoding in the path component per RFC 9421.
+func TestPathPercentEncodingPreservation(t *testing.T) {
+	t.Run("@path preserves percent-encoded slash", func(t *testing.T) {
+		// %2F is an encoded forward slash - must be preserved
+		req, _ := http.NewRequest("GET", "https://example.com/foo%2Fbar", nil)
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@path",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "/foo%2Fbar"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("@path preserves percent-encoded space", func(t *testing.T) {
+		// %20 is an encoded space - must be preserved
+		req, _ := http.NewRequest("GET", "https://example.com/hello%20world", nil)
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@path",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "/hello%20world"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("@request-target preserves percent-encoding in path", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "https://example.com/foo%2Fbar?q=test", nil)
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@request-target",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "/foo%2Fbar?q=test"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("@request-target with empty path returns slash", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "https://example.com?q=test", nil)
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@request-target",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "/?q=test"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+}

@@ -347,22 +347,26 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 			return "", fmt.Errorf("@request-target is only valid for requests")
 		}
 		u, _ := msg.URL()
-		result := u.Path
-		if u.RawQuery != "" {
-			result += "?" + u.RawQuery
+		path := u.EscapedPath()
+		if path == "" {
+			path = "/"
 		}
-		return result, nil
+		if u.RawQuery != "" {
+			return path + "?" + u.RawQuery, nil
+		}
+		return path, nil
 
 	case "@path":
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@path is only valid for requests")
 		}
 		u, _ := msg.URL()
+		path := u.EscapedPath()
 		// RFC 9421 Section 2.2.6: an empty path string is normalized as a single slash (/) character
-		if u.Path == "" {
+		if path == "" {
 			return "/", nil
 		}
-		return u.Path, nil
+		return path, nil
 
 	case "@query":
 		if !msg.IsRequest() {
