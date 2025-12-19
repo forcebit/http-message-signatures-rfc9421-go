@@ -1,12 +1,15 @@
 package comparison
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +19,8 @@ import (
 const (
 	benchmarkCreatedMaxAge     = 5 * time.Minute
 	benchmarkCreatedFutureSkew = time.Minute
+	benchmarkLargeBodySize     = int64(10 * 1024 * 1024)
+	benchmarkLargeBodyChunk    = 32 * 1024
 )
 
 // Shared test keys - generated once at init
@@ -25,6 +30,7 @@ var (
 	testECPrivKey  *ecdsa.PrivateKey
 	testECPubKey   *ecdsa.PublicKey
 	testHMACKey    []byte
+	largeBodyChunk = bytes.Repeat([]byte("a"), benchmarkLargeBodyChunk)
 )
 
 func init() {
@@ -66,11 +72,72 @@ func createTestRequest() *http.Request {
 	return req
 }
 
+type repeatReader struct {
+	chunk     []byte
+	remaining int64
+	offset    int
+}
+
+func (r *repeatReader) Read(p []byte) (int, error) {
+	if r.remaining <= 0 {
+		return 0, io.EOF
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:r.remaining]
+	}
+	n := 0
+	for n < len(p) {
+		avail := len(r.chunk) - r.offset
+		if avail > len(p)-n {
+			avail = len(p) - n
+		}
+		copy(p[n:n+avail], r.chunk[r.offset:r.offset+avail])
+		n += avail
+		r.offset += avail
+		if r.offset == len(r.chunk) {
+			r.offset = 0
+		}
+	}
+	r.remaining -= int64(n)
+	return n, nil
+}
+
+func newLargeBodyReader() *repeatReader {
+	return &repeatReader{chunk: largeBodyChunk, remaining: benchmarkLargeBodySize}
+}
+
+func newLargeBody() io.ReadCloser {
+	return io.NopCloser(newLargeBodyReader())
+}
+
+func createLargeRequest() *http.Request {
+	body := newLargeBody()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"https://example.com/api/resource?param=value",
+		body,
+	)
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Length", strconv.FormatInt(benchmarkLargeBodySize, 10))
+	req.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
+	req.Host = "example.com"
+	req.ContentLength = benchmarkLargeBodySize
+	return req
+}
+
 // Components to sign for Forcebit
 var testComponents = []parser.ComponentIdentifier{
 	{Name: "@method", Type: parser.ComponentDerived},
 	{Name: "@target-uri", Type: parser.ComponentDerived},
 	{Name: "content-type", Type: parser.ComponentField},
+}
+
+var testDigestComponents = []parser.ComponentIdentifier{
+	{Name: "@method", Type: parser.ComponentDerived},
+	{Name: "@target-uri", Type: parser.ComponentDerived},
+	{Name: "content-type", Type: parser.ComponentField},
+	{Name: "content-length", Type: parser.ComponentField},
+	{Name: "content-digest", Type: parser.ComponentField},
 }
 
 func benchmarkValidationOptions() parser.SignatureParamsValidationOptions {

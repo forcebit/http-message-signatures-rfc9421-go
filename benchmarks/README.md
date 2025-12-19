@@ -27,6 +27,7 @@ All benchmarks measure equivalent full-flow operations:
 **Components signed**: `@method`, `@target-uri`, `content-type` (identical across all libraries)
 **Validation**: `created` required, max age 5 minutes, future skew 1 minute (applied across all libraries)
 **Reporting**: median of 5 runs (`go test -bench=. -benchmem -count=5`)
+**Large-body digest benchmark**: 10MB request body, HMAC signing with `content-digest` + `content-length`
 
 ## Results
 
@@ -37,6 +38,15 @@ All benchmarks measure equivalent full-flow operations:
 | RSA-PSS-SHA512 | **1,060,530** | 1,151,409 | 1,133,361 | 1,155,691 |
 | ECDSA-P256-SHA256 | **29,065** | 31,647 | 31,369 | 32,649 |
 | HMAC-SHA256 | **4,520** | 5,761 | 6,086 | 8,111 |
+
+### HMAC + Content-Digest (10MB) Sign Performance
+
+| Metric | forcebit | yaronf | remitly | common-fate |
+|--------|----------|--------|---------|-------------|
+| ns/op | **4,325,239** | 7,099,148 | 5,728,957 | 6,401,220 |
+| MB/s | **2,424** | 1,477 | 1,830 | 1,638 |
+| B/op | **10,778** | 54,541,576 | 33,570,286 | 33,572,233 |
+| allocs/op | **134** | 172 | 182 | 182 |
 
 ### Sign Memory (B/op, lower is better)
 
@@ -102,6 +112,12 @@ Sign (ns/op, lower is better)
     remitly     ##############################           6086
     common-fate ######################################## 8111
 
+Sign HMAC + Content-Digest (10MB)
+    forcebit    ########################                  4325239
+    yaronf      ########################################  7099148
+    remitly     ################################         5728957
+    common-fate ####################################     6401220
+
 Verify (ns/op, lower is better)
   RSA-PSS-SHA512
     forcebit    ###################################      39422
@@ -134,10 +150,12 @@ Verify (ns/op, lower is better)
 ### Memory Efficiency
 - forcebit uses 7-50% less memory than alternatives
 - forcebit makes 5-54% fewer allocations
+- large-body digest: forcebit stays ~10 KB/op vs 32-54 MB/op for others
 
 ## Running Benchmarks
 
 ```bash
 cd benchmarks/comparison
 go test -bench=. -benchmem -count=5
+go test -bench=BenchmarkSign_HMAC_ContentDigest_10MB -benchmem -count=5
 ```

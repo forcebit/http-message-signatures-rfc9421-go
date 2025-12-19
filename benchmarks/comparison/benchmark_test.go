@@ -3,12 +3,14 @@ package comparison
 import (
 	"context"
 	"crypto"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	// Forcebit
+	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/digest"
 	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/httpsig"
 
 	// yaronf/httpsign
@@ -629,6 +631,101 @@ func BenchmarkVerify_HMAC_CommonFate(b *testing.B) {
 }
 
 // =============================================================================
+// HMAC-SHA256 Sign + Content-Digest (10MB Body) Benchmarks
+// =============================================================================
+
+func BenchmarkSign_HMAC_ContentDigest_10MB_Forcebit(b *testing.B) {
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "hmac-sha256",
+		Key:        testHMACKey,
+		KeyID:      "test-key-hmac",
+		Components: testDigestComponents,
+	})
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
+
+	buf := make([]byte, benchmarkLargeBodyChunk)
+	b.SetBytes(benchmarkLargeBodySize)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := createLargeRequest()
+
+		h, _ := digest.NewDigester(digest.AlgorithmSHA256)
+		_, _ = io.CopyBuffer(h, req.Body, buf)
+		_ = req.Body.Close()
+		req.Body = newLargeBody()
+
+		header, _ := digest.FormatContentDigest(map[string][]byte{
+			digest.AlgorithmSHA256: h.Sum(nil),
+		})
+		req.Header.Set("Content-Digest", header)
+
+		_, _ = signer.SignRequest(req)
+	}
+}
+
+func BenchmarkSign_HMAC_ContentDigest_10MB_Yaronf(b *testing.B) {
+	fields := yaronf.Headers("@method", "@target-uri", "content-type", "content-length", "content-digest")
+	config := yaronf.NewSignConfig().SetKeyID("test-key-hmac").SignAlg(false)
+	signerY, err := yaronf.NewHMACSHA256Signer(testHMACKey, config, fields)
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
+
+	b.SetBytes(benchmarkLargeBodySize)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := createLargeRequest()
+		digestHeader, _ := yaronf.GenerateContentDigestHeader(&req.Body, []string{yaronf.DigestSha256})
+		req.Header.Set("Content-Digest", digestHeader)
+		_, _, _ = yaronf.SignRequest("sig1", *signerY, req)
+	}
+}
+
+func BenchmarkSign_HMAC_ContentDigest_10MB_Remitly(b *testing.B) {
+	profile := remitly.SigningProfile{
+		Algorithm: remitly.Algo_HMAC_SHA256,
+		Digest:    remitly.DigestSHA256,
+		Fields:    remitly.Fields("@method", "@target-uri", "content-type", "content-length", "content-digest"),
+		Metadata:  []remitly.Metadata{remitly.MetaKeyID, remitly.MetaCreated},
+		Label:     "sig1",
+	}
+	sigKey := remitly.SigningKey{Secret: testHMACKey, MetaKeyID: "test-key-hmac"}
+
+	b.SetBytes(benchmarkLargeBodySize)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := createLargeRequest()
+		_ = remitly.Sign(req, profile, sigKey)
+	}
+}
+
+func BenchmarkSign_HMAC_ContentDigest_10MB_CommonFate(b *testing.B) {
+	sigAlg := alg_hmac.NewHMAC(testHMACKey)
+	transport := &signer.Transport{
+		KeyID:             "test-key-hmac",
+		Tag:               "benchmark",
+		Alg:               sigAlg,
+		CoveredComponents: []string{"@method", "@target-uri", "content-type", "content-length", "content-digest"},
+	}
+
+	b.SetBytes(benchmarkLargeBodySize)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := createLargeRequest()
+		msg, _ := transport.Sign(req)
+		set := &sigset.Set{Messages: make(map[string]*signature.Message)}
+		set.Add(msg)
+		_ = set.Include(req)
+	}
+}
+
+// =============================================================================
 // Helper types for library adapters
 // =============================================================================
 
@@ -716,6 +813,13 @@ func BenchmarkVerify_AllLibraries_HMAC(b *testing.B) {
 	b.Run("Yaronf", BenchmarkVerify_HMAC_Yaronf)
 	b.Run("Remitly", BenchmarkVerify_HMAC_Remitly)
 	b.Run("CommonFate", BenchmarkVerify_HMAC_CommonFate)
+}
+
+func BenchmarkSign_AllLibraries_HMAC_ContentDigest_10MB(b *testing.B) {
+	b.Run("Forcebit", BenchmarkSign_HMAC_ContentDigest_10MB_Forcebit)
+	b.Run("Yaronf", BenchmarkSign_HMAC_ContentDigest_10MB_Yaronf)
+	b.Run("Remitly", BenchmarkSign_HMAC_ContentDigest_10MB_Remitly)
+	b.Run("CommonFate", BenchmarkSign_HMAC_ContentDigest_10MB_CommonFate)
 }
 
 // =============================================================================
