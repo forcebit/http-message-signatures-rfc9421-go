@@ -285,15 +285,15 @@ Verifies Content-Digest header against streaming body (O(1) memory).
 
 ## Benchmarks
 
-Compared against other Go RFC 9421 implementations ([yaronf/httpsign](https://github.com/yaronf/httpsign), [remitly-oss/httpsig-go](https://github.com/remitly-oss/httpsig-go), [common-fate/httpsig](https://github.com/common-fate/httpsig)):
+Compared against other Go RFC 9421 implementations ([yaronf/httpsign](https://github.com/yaronf/httpsign), [remitly-oss/httpsig-go](https://github.com/remitly-oss/httpsig-go), [common-fate/httpsig](https://github.com/common-fate/httpsig)) with consistent created-timestamp validation:
 
 | Metric | Sign | Verify |
 |--------|------|--------|
-| **RSA-PSS-SHA512** | 2-7% faster | 14-27% faster |
-| **ECDSA-P256** | 13-19% faster | 10-16% faster |
-| **HMAC-SHA256** | 2-2.7x faster | 9-16x faster |
-| **Memory** | 35-85% less | 35-85% less |
-| **Allocations** | 50-90% fewer | 50-90% fewer |
+| **RSA-PSS-SHA512** | 0.3-2.5% faster | 6-14% faster |
+| **ECDSA-P256** | 3-8% faster | 4-10% faster |
+| **HMAC-SHA256** | 1.2-1.7x faster | 1.4-2.5x faster |
+| **Memory** | 7-50% less | 7-50% less |
+| **Allocations** | 4-54% fewer | 4-54% fewer |
 
 See [benchmarks/README.md](benchmarks/README.md) for detailed results and methodology.
 

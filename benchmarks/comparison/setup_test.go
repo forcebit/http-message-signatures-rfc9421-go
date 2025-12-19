@@ -13,6 +13,11 @@ import (
 	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
 )
 
+const (
+	benchmarkCreatedMaxAge     = 5 * time.Minute
+	benchmarkCreatedFutureSkew = time.Minute
+)
+
 // Shared test keys - generated once at init
 var (
 	testRSAPrivKey  *rsa.PrivateKey
@@ -68,8 +73,7 @@ func createTestRequest() *http.Request {
 // Components to sign for Forcebit
 var testComponents = []parser.ComponentIdentifier{
 	{Name: "@method", Type: parser.ComponentDerived},
-	{Name: "@authority", Type: parser.ComponentDerived},
-	{Name: "@path", Type: parser.ComponentDerived},
+	{Name: "@target-uri", Type: parser.ComponentDerived},
 	{Name: "content-type", Type: parser.ComponentField},
 }
 
@@ -79,5 +83,15 @@ func testSignatureParams(keyID, alg string) parser.SignatureParams {
 		Created:   &testCreatedTime,
 		KeyID:     &keyID,
 		Algorithm: &alg,
+	}
+}
+
+func benchmarkValidationOptions() parser.SignatureParamsValidationOptions {
+	return parser.SignatureParamsValidationOptions{
+		RequireCreated:          true,
+		CreatedNotOlderThan:     benchmarkCreatedMaxAge,
+		CreatedNotNewerThan:     benchmarkCreatedFutureSkew,
+		RejectExpired:           true,
+		ExpiresNotBeforeCreated: true,
 	}
 }
