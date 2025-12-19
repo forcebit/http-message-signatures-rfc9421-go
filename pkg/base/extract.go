@@ -3,6 +3,7 @@ package base
 import (
 	"encoding/base64"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -303,6 +304,19 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 	return rawValue, nil
 }
 
+// getRequestURL validates msg is a request and returns its URL.
+// Returns an error with the component name if msg is not a request or URL() fails.
+func getRequestURL(msg HTTPMessage, compName string) (*url.URL, error) {
+	if !msg.IsRequest() {
+		return nil, fmt.Errorf("%s is only valid for requests", compName)
+	}
+	u, err := msg.URL()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", compName, err)
+	}
+	return u, nil
+}
+
 // extractDerivedComponentValue extracts derived components per RFC 9421 Section 2.2.
 //
 // RFC 9421 Section 2.2: Derived components start with @ and are computed from
@@ -329,35 +343,38 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 		if !msg.IsRequest() {
 			return "", fmt.Errorf("@method is only valid for requests")
 		}
-		method, _ := msg.Method()
+		method, err := msg.Method()
+		if err != nil {
+			return "", fmt.Errorf("@method: %w", err)
+		}
 		return method, nil
 
 	case "@target-uri":
-		if !msg.IsRequest() {
-			return "", fmt.Errorf("@target-uri is only valid for requests")
+		u, err := getRequestURL(msg, "@target-uri")
+		if err != nil {
+			return "", err
 		}
-		u, _ := msg.URL()
 		return u.String(), nil
 
 	case "@authority":
-		if !msg.IsRequest() {
-			return "", fmt.Errorf("@authority is only valid for requests")
+		u, err := getRequestURL(msg, "@authority")
+		if err != nil {
+			return "", err
 		}
-		u, _ := msg.URL()
 		return u.Host, nil
 
 	case "@scheme":
-		if !msg.IsRequest() {
-			return "", fmt.Errorf("@scheme is only valid for requests")
+		u, err := getRequestURL(msg, "@scheme")
+		if err != nil {
+			return "", err
 		}
-		u, _ := msg.URL()
 		return u.Scheme, nil
 
 	case "@request-target":
-		if !msg.IsRequest() {
-			return "", fmt.Errorf("@request-target is only valid for requests")
+		u, err := getRequestURL(msg, "@request-target")
+		if err != nil {
+			return "", err
 		}
-		u, _ := msg.URL()
 		path := u.EscapedPath()
 		if path == "" {
 			path = "/"
@@ -368,10 +385,10 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 		return path, nil
 
 	case "@path":
-		if !msg.IsRequest() {
-			return "", fmt.Errorf("@path is only valid for requests")
+		u, err := getRequestURL(msg, "@path")
+		if err != nil {
+			return "", err
 		}
-		u, _ := msg.URL()
 		path := u.EscapedPath()
 		// RFC 9421 Section 2.2.6: an empty path string is normalized as a single slash (/) character
 		if path == "" {
@@ -380,19 +397,16 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 		return path, nil
 
 	case "@query":
-		if !msg.IsRequest() {
-			return "", fmt.Errorf("@query is only valid for requests")
+		u, err := getRequestURL(msg, "@query")
+		if err != nil {
+			return "", err
 		}
-		u, _ := msg.URL()
 		if u.RawQuery == "" {
 			return "?", nil
 		}
 		return "?" + u.RawQuery, nil
 
 	case "@query-param":
-		if !msg.IsRequest() {
-			return "", fmt.Errorf("@query-param is only valid for requests")
-		}
 		// RFC 9421 Section 2.2.8: Requires 'name' parameter
 		var paramName string
 		for _, param := range comp.Parameters {
@@ -407,7 +421,10 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 			return "", fmt.Errorf("@query-param requires 'name' parameter")
 		}
 
-		u, _ := msg.URL()
+		u, err := getRequestURL(msg, "@query-param")
+		if err != nil {
+			return "", err
+		}
 		values := u.Query()[paramName]
 		if len(values) == 0 {
 			return "", fmt.Errorf("query parameter %q not found", paramName)
@@ -419,7 +436,10 @@ func extractDerivedComponentValue(msg HTTPMessage, comp parser.ComponentIdentifi
 		if !msg.IsResponse() {
 			return "", fmt.Errorf("@status is only valid for responses")
 		}
-		statusCode, _ := msg.StatusCode()
+		statusCode, err := msg.StatusCode()
+		if err != nil {
+			return "", fmt.Errorf("@status: %w", err)
+		}
 		return strconv.Itoa(statusCode), nil
 
 	default:
