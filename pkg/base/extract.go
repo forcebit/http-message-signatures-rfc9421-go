@@ -147,42 +147,19 @@ func extractComponentValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 //   - bs: Encode as base64 byte sequence wrapped in :value: (FR-012)
 //   - key: Extract specific dictionary member (FR-013)
 func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (string, error) {
-	// Parse component parameters
-	var isTrailer, useSF, useBS bool
-	var keyName string
-
-	for _, param := range comp.Parameters {
-		switch param.Key {
-		case "tr":
-			if boolVal, ok := param.Value.(parser.Boolean); ok {
-				isTrailer = boolVal.Value
-			}
-		case "sf":
-			if boolVal, ok := param.Value.(parser.Boolean); ok {
-				useSF = boolVal.Value
-			}
-		case "bs":
-			if boolVal, ok := param.Value.(parser.Boolean); ok {
-				useBS = boolVal.Value
-			}
-		case "key":
-			if strVal, ok := param.Value.(parser.String); ok {
-				keyName = strVal.Value
-			}
-		}
-	}
+	params := parseHTTPFieldParams(comp.Parameters)
 
 	// RFC 9421 Section 2.1.1: Validate parameter combinations (FR-017, FR-018)
-	if useSF && useBS {
+	if params.useSF && params.useBS {
 		return "", fmt.Errorf("component %q: 'sf' and 'bs' parameters are mutually exclusive (RFC 9421 Section 2.1.1)", comp.Name)
 	}
-	if keyName != "" && !useSF {
+	if params.keyName != "" && !params.useSF {
 		return "", fmt.Errorf("component %q: 'key' parameter requires 'sf' parameter for structured field dictionary (RFC 9421 Section 2.1.2)", comp.Name)
 	}
 
 	// Step 1: Extract field values in order
 	var values []string
-	if isTrailer {
+	if params.isTrailer {
 		values = msg.TrailerValues(comp.Name)
 	} else {
 		values = msg.HeaderValues(comp.Name)
@@ -191,117 +168,146 @@ func extractHTTPFieldValue(msg HTTPMessage, comp parser.ComponentIdentifier) (st
 	// RFC 9421: Missing header is an error
 	if len(values) == 0 {
 		fieldType := "header"
-		if isTrailer {
+		if params.isTrailer {
 			fieldType = "trailer"
 		}
 		return "", fmt.Errorf("%s field %q not found", fieldType, comp.Name)
 	}
 
-	// Step 2 & 3: Strip leading/trailing whitespace and normalize line folding
-	// RFC 9421 Section 2.1: obs-fold is CRLF or LF followed by whitespace
-	normalizedValues := make([]string, len(values))
-	for i, v := range values {
-		var err error
-		if v, err = normalizeLineFolding(v); err != nil {
-			return "", fmt.Errorf("component %q: %w", comp.Name, err)
-		}
-		normalizedValues[i] = strings.TrimSpace(v)
+	rawValue, err := canonicalizeFieldValues(values, comp.Name)
+	if err != nil {
+		return "", err
 	}
-
-	// Step 4: Join multiple values with ", " (comma + space)
-	rawValue := strings.Join(normalizedValues, ", ")
 
 	// Step 5: Apply parameter-specific processing
 
 	// SF Parameter: Serialize as RFC 8941 Structured Field (FR-011)
 	// This must be processed BEFORE the 'key' parameter if both are present
-	if useSF {
-		// Parse the raw value as a Structured Field
-		// Try parsing as dictionary first, then as item
-		sfvParser := sfv.NewParser(rawValue, sfv.DefaultLimits())
-
-		// If key parameter is specified, we're extracting a dictionary member
-		if keyName != "" {
-			// Parse as dictionary (FR-013)
-			dict, err := sfvParser.ParseDictionary()
-			if err != nil {
-				return "", fmt.Errorf("component %q: failed to parse as structured field dictionary: %w", comp.Name, err)
-			}
-
-			// Extract the specified member
-			memberValue, exists := dict.Values[keyName]
-			if !exists {
-				return "", fmt.Errorf("component %q: dictionary member %q not found", comp.Name, keyName)
-			}
-
-			// Serialize the member value
-			switch v := memberValue.(type) {
-			case sfv.Item:
-				serialized, err := sfv.SerializeItem(v)
-				if err != nil {
-					return "", fmt.Errorf("component %q: failed to serialize dictionary member %q: %w", comp.Name, keyName, err)
-				}
-				return serialized, nil
-
-			case sfv.InnerList:
-				serialized, err := sfv.SerializeInnerList(v)
-				if err != nil {
-					return "", fmt.Errorf("component %q: failed to serialize dictionary member %q: %w", comp.Name, keyName, err)
-				}
-				return serialized, nil
-
-			default:
-				return "", fmt.Errorf("component %q: invalid dictionary member type for %q: %T", comp.Name, keyName, memberValue)
-			}
-		}
-
-		// No key parameter - serialize the entire field
-		// Try dictionary first (most common for structured fields)
-		dict, dictErr := sfvParser.ParseDictionary()
-		if dictErr == nil {
-			serialized, err := sfv.SerializeDictionary(dict)
-			if err != nil {
-				return "", fmt.Errorf("component %q: failed to serialize structured field dictionary: %w", comp.Name, err)
-			}
-			return serialized, nil
-		}
-
-		// Try parsing as list
-		sfvParser = sfv.NewParser(rawValue, sfv.DefaultLimits())
-		list, listErr := sfvParser.ParseList()
-		if listErr == nil {
-			serialized, err := sfv.SerializeList(list)
-			if err != nil {
-				return "", fmt.Errorf("component %q: failed to serialize structured field list: %w", comp.Name, err)
-			}
-			return serialized, nil
-		}
-
-		// Try parsing as item (single value)
-		sfvParser = sfv.NewParser(rawValue, sfv.DefaultLimits())
-		item, itemErr := sfvParser.ParseItem()
-		if itemErr == nil {
-			serialized, err := sfv.SerializeItem(*item)
-			if err != nil {
-				return "", fmt.Errorf("component %q: failed to serialize structured field item: %w", comp.Name, err)
-			}
-			return serialized, nil
-		}
-
-		// If all parsing attempts failed, return a combined error
-		//nolint:errorlint // Only one error can be wrapped per fmt.Errorf; wrapping itemErr as it's the last attempt
-		return "", fmt.Errorf("component %q: failed to parse as structured field (dict: %v, list: %v, item: %w)", comp.Name, dictErr, listErr, itemErr)
+	if params.useSF {
+		return serializeStructuredFieldValue(rawValue, comp.Name, params.keyName)
 	}
 
 	// BS Parameter: Base64-encode as byte sequence (FR-012)
 	// RFC 9421 Section 2.1.3: Byte sequences are wrapped in colons :base64:
-	if useBS {
+	if params.useBS {
 		encoded := base64.StdEncoding.EncodeToString([]byte(rawValue))
 		return ":" + encoded + ":", nil
 	}
 
 	// Default: Return raw canonicalized value (no special processing)
 	return rawValue, nil
+}
+
+type httpFieldParams struct {
+	isTrailer bool
+	useSF     bool
+	useBS     bool
+	keyName   string
+}
+
+func parseHTTPFieldParams(params []parser.Parameter) httpFieldParams {
+	result := httpFieldParams{}
+	for _, param := range params {
+		switch param.Key {
+		case "tr":
+			if boolVal, ok := param.Value.(parser.Boolean); ok {
+				result.isTrailer = boolVal.Value
+			}
+		case "sf":
+			if boolVal, ok := param.Value.(parser.Boolean); ok {
+				result.useSF = boolVal.Value
+			}
+		case "bs":
+			if boolVal, ok := param.Value.(parser.Boolean); ok {
+				result.useBS = boolVal.Value
+			}
+		case "key":
+			if strVal, ok := param.Value.(parser.String); ok {
+				result.keyName = strVal.Value
+			}
+		}
+	}
+	return result
+}
+
+func canonicalizeFieldValues(values []string, compName string) (string, error) {
+	normalizedValues := make([]string, len(values))
+	for i, v := range values {
+		var err error
+		if v, err = normalizeLineFolding(v); err != nil {
+			return "", fmt.Errorf("component %q: %w", compName, err)
+		}
+		normalizedValues[i] = strings.TrimSpace(v)
+	}
+	return strings.Join(normalizedValues, ", "), nil
+}
+
+func serializeStructuredFieldValue(rawValue, compName, keyName string) (string, error) {
+	sfvParser := sfv.NewParser(rawValue, sfv.DefaultLimits())
+	if keyName != "" {
+		dict, err := sfvParser.ParseDictionary()
+		if err != nil {
+			return "", fmt.Errorf("component %q: failed to parse as structured field dictionary: %w", compName, err)
+		}
+
+		memberValue, exists := dict.Values[keyName]
+		if !exists {
+			return "", fmt.Errorf("component %q: dictionary member %q not found", compName, keyName)
+		}
+
+		return serializeStructuredFieldMember(compName, keyName, memberValue)
+	}
+
+	dict, dictErr := sfvParser.ParseDictionary()
+	if dictErr == nil {
+		serialized, err := sfv.SerializeDictionary(dict)
+		if err != nil {
+			return "", fmt.Errorf("component %q: failed to serialize structured field dictionary: %w", compName, err)
+		}
+		return serialized, nil
+	}
+
+	sfvParser = sfv.NewParser(rawValue, sfv.DefaultLimits())
+	list, listErr := sfvParser.ParseList()
+	if listErr == nil {
+		serialized, err := sfv.SerializeList(list)
+		if err != nil {
+			return "", fmt.Errorf("component %q: failed to serialize structured field list: %w", compName, err)
+		}
+		return serialized, nil
+	}
+
+	sfvParser = sfv.NewParser(rawValue, sfv.DefaultLimits())
+	item, itemErr := sfvParser.ParseItem()
+	if itemErr == nil {
+		serialized, err := sfv.SerializeItem(*item)
+		if err != nil {
+			return "", fmt.Errorf("component %q: failed to serialize structured field item: %w", compName, err)
+		}
+		return serialized, nil
+	}
+
+	//nolint:errorlint // Only one error can be wrapped per fmt.Errorf; wrapping itemErr as it's the last attempt
+	return "", fmt.Errorf("component %q: failed to parse as structured field (dict: %v, list: %v, item: %w)", compName, dictErr, listErr, itemErr)
+}
+
+func serializeStructuredFieldMember(compName, keyName string, memberValue interface{}) (string, error) {
+	switch v := memberValue.(type) {
+	case sfv.Item:
+		serialized, err := sfv.SerializeItem(v)
+		if err != nil {
+			return "", fmt.Errorf("component %q: failed to serialize dictionary member %q: %w", compName, keyName, err)
+		}
+		return serialized, nil
+	case sfv.InnerList:
+		serialized, err := sfv.SerializeInnerList(v)
+		if err != nil {
+			return "", fmt.Errorf("component %q: failed to serialize dictionary member %q: %w", compName, keyName, err)
+		}
+		return serialized, nil
+	default:
+		return "", fmt.Errorf("component %q: invalid dictionary member type for %q: %T", compName, keyName, memberValue)
+	}
 }
 
 // getRequestURL validates msg is a request and returns its URL.
