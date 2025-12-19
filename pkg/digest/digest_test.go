@@ -324,6 +324,51 @@ func BenchmarkStreaming_SHA256_100KB(b *testing.B) {
 	}
 }
 
+type repeatReader struct {
+	chunk     []byte
+	remaining int64
+	offset    int
+}
+
+func (r *repeatReader) Read(p []byte) (int, error) {
+	if r.remaining <= 0 {
+		return 0, io.EOF
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:r.remaining]
+	}
+	n := 0
+	for n < len(p) {
+		avail := len(r.chunk) - r.offset
+		if avail > len(p)-n {
+			avail = len(p) - n
+		}
+		copy(p[n:n+avail], r.chunk[r.offset:r.offset+avail])
+		n += avail
+		r.offset += avail
+		if r.offset == len(r.chunk) {
+			r.offset = 0
+		}
+	}
+	r.remaining -= int64(n)
+	return n, nil
+}
+
+func BenchmarkStreaming_SHA256_10MB(b *testing.B) {
+	const size = 10 * 1024 * 1024
+	chunk := bytes.Repeat([]byte("a"), 32*1024)
+	buf := make([]byte, 32*1024)
+	b.SetBytes(size)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h, _ := NewDigester(AlgorithmSHA256)
+		reader := &repeatReader{chunk: chunk, remaining: size}
+		_, _ = io.CopyBuffer(h, reader, buf)
+		_ = h.Sum(nil)
+	}
+}
+
 // Verification benchmarks
 func BenchmarkVerifyContentDigestBytes_SHA256_1KB(b *testing.B) {
 	body := bytes.Repeat([]byte("a"), 1024)
