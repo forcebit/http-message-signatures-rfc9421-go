@@ -17,6 +17,7 @@ A complete Go implementation of [RFC 9421 HTTP Message Signatures](https://datat
 - **6 Signature Algorithms** - RSA-PSS, RSA PKCS#1 v1.5, ECDSA (P-256, P-384), Ed25519, HMAC-SHA256
 - **7 Digest Algorithms** - SHA-2, SHA-3, BLAKE2b families
 - **Zero External Dependencies** - Only `golang.org/x/crypto` for SHA-3/BLAKE2b
+- **High-level Sign/Verify API** - `pkg/httpsig` helpers for common HTTP flows
 - **Streaming Support** - O(1) memory for large message bodies
 - **RFC 8941 Parser** - Complete Structured Field Values implementation
 
@@ -30,67 +31,167 @@ go get github.com/forcebit/http-message-signatures-rfc9421-go
 
 ## Quick Start
 
-### Sign an HTTP Request
+### High-level API (Signer/Verifier)
 
 ```go
 package main
 
 import (
-    "crypto/ecdsa"
-    "crypto/elliptic"
-    "crypto/rand"
-    "fmt"
     "net/http"
+    "time"
 
-    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/base"
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/httpsig"
     "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
-    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/signing"
 )
 
 func main() {
-    // Create request
     req, _ := http.NewRequest("POST", "https://example.com/api/resource", nil)
     req.Header.Set("Content-Type", "application/json")
 
-    // Define components to sign
     components := []parser.ComponentIdentifier{
         {Name: "@method", Type: parser.ComponentDerived},
         {Name: "@path", Type: parser.ComponentDerived},
         {Name: "content-type", Type: parser.ComponentField},
     }
 
-    // Set signature parameters
-    created := int64(1618884473)
-    alg := "ecdsa-p256-sha256"
-    keyid := "my-key-id"
-    params := parser.SignatureParams{
-        Created:   &created,
-        Algorithm: &alg,
-        KeyID:     &keyid,
-    }
+    key := []byte("0123456789abcdef0123456789abcdef")
 
-    // Build signature base
-    msg := base.WrapRequest(req)
-    sigBase, _ := base.Build(msg, components, params)
+    signer, _ := httpsig.NewSigner(httpsig.SignerOptions{
+        Algorithm:  "hmac-sha256",
+        Key:        key,
+        KeyID:      "my-key",
+        Components: components,
+        Created:    time.Now(),
+        Expires:    time.Now().Add(5 * time.Minute),
+    })
+    _, _ = signer.SignRequest(req)
 
-    // Sign
-    privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-    algorithm, _ := signing.GetAlgorithm("ecdsa-p256-sha256")
-    signature, _ := algorithm.Sign(sigBase, privateKey)
+    verifier, _ := httpsig.NewVerifier(httpsig.VerifyOptions{
+        Key:       key,
+        Algorithm: "hmac-sha256",
+        RequiredComponents: []parser.ComponentIdentifier{
+            {Name: "@method", Type: parser.ComponentDerived},
+            {Name: "@path", Type: parser.ComponentDerived},
+        },
+        ParamsValidation: parser.SignatureParamsValidationOptions{
+            RequireCreated:          true,
+            CreatedNotOlderThan:     5 * time.Minute,
+            CreatedNotNewerThan:     time.Minute,
+            RejectExpired:           true,
+            ExpiresNotBeforeCreated: true,
+        },
+    })
 
-    fmt.Printf("Signature: %x\n", signature)
+    _, _ = verifier.VerifyRequest(req)
 }
 ```
 
-### Verify a Signature
+### Sign and verify a response (high-level API)
 
 ```go
 package main
 
 import (
-    "encoding/base64"
+    "net/http"
+
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/httpsig"
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
+)
+
+func main() {
+    key := []byte("0123456789abcdef0123456789abcdef")
+    signer, _ := httpsig.NewSigner(httpsig.SignerOptions{
+        Algorithm:  "hmac-sha256",
+        Key:        key,
+        Components: []parser.ComponentIdentifier{{Name: "@status", Type: parser.ComponentDerived}},
+    })
+
+    resp := &http.Response{StatusCode: 200, Header: http.Header{}}
+    resp.Header.Set("Content-Type", "application/json")
+    _, _ = signer.SignResponse(resp, nil)
+
+    verifier, _ := httpsig.NewVerifier(httpsig.VerifyOptions{
+        Key:       key,
+        Algorithm: "hmac-sha256",
+        RequiredComponents: []parser.ComponentIdentifier{
+            {Name: "@status", Type: parser.ComponentDerived},
+        },
+    })
+    _, _ = verifier.VerifyResponse(resp, nil)
+}
+```
+
+### Configuration
+
+SignerOptions:
+- `Label`: signature label (default `sig1`)
+- `Components`: covered components (order matters)
+- `Algorithm`, `Key`: required for signing
+- `KeyID`, `Nonce`, `Tag`: optional metadata
+- `Created`, `Expires`: set explicit timestamps
+- `DisableCreated`, `DisableAlgorithm`: omit `created`/`alg` params
+- `Now`: override clock if `Created` is zero
+
+VerifyOptions:
+- `Label`: specific signature label (required when multiple signatures are present)
+- `RequiredComponents`: enforce coverage
+- `AllowedAlgorithms`: allowlist of algorithms
+- `Key`, `Algorithm`: fixed verification key/alg
+- `KeyResolver`: dynamic key lookup (mutually exclusive with `Key`)
+- `ParamsValidation`: created/expires policy and skew tolerance
+- `Limits`: Structured Field parsing limits
+
+### Key resolution (dynamic keys)
+
+```go
+package main
+
+import (
+    "context"
     "fmt"
     "net/http"
+    "time"
+
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/httpsig"
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
+)
+
+func main() {
+    resolver := httpsig.KeyResolverFunc(func(ctx context.Context, label string, params parser.SignatureParams) (interface{}, string, error) {
+        if params.KeyID == nil {
+            return nil, "", fmt.Errorf("missing keyid")
+        }
+        key := lookupKey(*params.KeyID)
+        return key, "hmac-sha256", nil
+    })
+
+    verifier, _ := httpsig.NewVerifier(httpsig.VerifyOptions{
+        KeyResolver: resolver,
+        ParamsValidation: parser.SignatureParamsValidationOptions{
+            RequireCreated:      true,
+            CreatedNotOlderThan: 5 * time.Minute,
+        },
+    })
+
+    req, _ := http.NewRequest("GET", "https://example.com/api/resource", nil)
+    _, _ = verifier.VerifyRequest(req)
+}
+
+func lookupKey(keyID string) []byte {
+    return []byte("0123456789abcdef0123456789abcdef")
+}
+```
+
+### Low-level API (manual headers)
+
+Sign:
+
+```go
+package main
+
+import (
+    "net/http"
+    "time"
 
     "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/base"
     "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
@@ -98,32 +199,115 @@ import (
     "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/signing"
 )
 
-func VerifyRequest(req *http.Request, publicKey interface{}) error {
-    // Parse signature headers
-    signatureInput := req.Header.Get("Signature-Input")
-    signatureHeader := req.Header.Get("Signature")
+func main() {
+    req, _ := http.NewRequest("POST", "https://example.com/api/resource", nil)
+    req.Header.Set("Content-Type", "application/json")
 
-    parsed, err := parser.ParseSignatures(signatureInput, signatureHeader, sfv.DefaultLimits())
+    components := []parser.ComponentIdentifier{
+        {Name: "@method", Type: parser.ComponentDerived},
+        {Name: "@path", Type: parser.ComponentDerived},
+        {Name: "content-type", Type: parser.ComponentField},
+    }
+
+    created := time.Now().Unix()
+    keyID := "my-key"
+    algID := "hmac-sha256"
+    params := parser.SignatureParams{
+        Created:   &created,
+        KeyID:     &keyID,
+        Algorithm: &algID,
+    }
+
+    msg := base.WrapRequest(req)
+    sigBase, _ := base.Build(msg, components, params)
+
+    key := []byte("0123456789abcdef0123456789abcdef")
+    alg, _ := signing.GetAlgorithm(algID)
+    sig, _ := alg.Sign(sigBase, key)
+
+    sigInputDict := &sfv.Dictionary{
+        Keys: []string{"sig1"},
+        Values: map[string]interface{}{
+            "sig1": sfv.InnerList{
+                Items: []sfv.Item{
+                    {Value: "@method"},
+                    {Value: "@path"},
+                    {Value: "content-type"},
+                },
+                Parameters: []sfv.Parameter{
+                    {Key: "created", Value: created},
+                    {Key: "keyid", Value: keyID},
+                    {Key: "alg", Value: algID},
+                },
+            },
+        },
+    }
+    sigDict := &sfv.Dictionary{
+        Keys: []string{"sig1"},
+        Values: map[string]interface{}{
+            "sig1": sfv.Item{Value: sig},
+        },
+    }
+
+    sigInput, _ := sfv.SerializeDictionary(sigInputDict)
+    sigHeader, _ := sfv.SerializeDictionary(sigDict)
+
+    req.Header.Set("Signature-Input", sigInput)
+    req.Header.Set("Signature", sigHeader)
+}
+```
+
+Verify:
+
+```go
+package main
+
+import (
+    "fmt"
+    "net/http"
+    "time"
+
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/base"
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/sfv"
+    "github.com/forcebit/http-message-signatures-rfc9421-go/pkg/signing"
+)
+
+func VerifyRequest(req *http.Request, key []byte) error {
+    parsed, err := parser.ParseSignatures(
+        req.Header.Get("Signature-Input"),
+        req.Header.Get("Signature"),
+        sfv.DefaultLimits(),
+    )
     if err != nil {
         return fmt.Errorf("parse error: %w", err)
     }
 
-    // Get signature entry (assuming single signature labeled "sig1")
     sig, ok := parsed.Signatures["sig1"]
     if !ok {
-        return fmt.Errorf("signature 'sig1' not found")
+        return fmt.Errorf("signature \"sig1\" not found")
     }
 
-    // Rebuild signature base
+    if err := parser.ValidateSignatureParams(sig.SignatureParams, parser.SignatureParamsValidationOptions{
+        RequireCreated:      true,
+        CreatedNotOlderThan: 5 * time.Minute,
+        CreatedNotNewerThan: time.Minute,
+    }); err != nil {
+        return fmt.Errorf("params error: %w", err)
+    }
+
     msg := base.WrapRequest(req)
     sigBase, err := base.Build(msg, sig.CoveredComponents, sig.SignatureParams)
     if err != nil {
         return fmt.Errorf("build error: %w", err)
     }
 
-    // Verify
-    alg, _ := signing.GetAlgorithm(*sig.SignatureParams.Algorithm)
-    return alg.Verify(sigBase, sig.SignatureValue, publicKey)
+    algID := "hmac-sha256"
+    if sig.SignatureParams.Algorithm != nil {
+        algID = *sig.SignatureParams.Algorithm
+    }
+    alg, _ := signing.GetAlgorithm(algID)
+    return alg.Verify(sigBase, sig.SignatureValue, key)
 }
 ```
 
@@ -185,6 +369,7 @@ func main() {
 
 | Package | Description |
 |---------|-------------|
+| `pkg/httpsig` | High-level sign/verify helpers |
 | `pkg/parser` | Parse Signature-Input and Signature headers |
 | `pkg/base` | Build canonical signature base from HTTP messages |
 | `pkg/signing` | Sign and verify with RFC 9421 algorithms |
@@ -289,11 +474,11 @@ Compared against other Go RFC 9421 implementations ([yaronf/httpsign](https://gi
 
 | Metric | Sign | Verify |
 |--------|------|--------|
-| **RSA-PSS-SHA512** | 0.3-2.5% faster | 6-14% faster |
-| **ECDSA-P256** | 3-8% faster | 4-10% faster |
-| **HMAC-SHA256** | 1.2-1.7x faster | 1.4-2.5x faster |
+| **RSA-PSS-SHA512** | 6-8% faster | 4-12% faster |
+| **ECDSA-P256** | 7-11% faster | 2-8% faster |
+| **HMAC-SHA256** | 1.3-1.8x faster | 1.4-2.3x faster |
 | **Memory** | 7-50% less | 7-50% less |
-| **Allocations** | 4-54% fewer | 4-54% fewer |
+| **Allocations** | 5-54% fewer | 5-54% fewer |
 
 See [benchmarks/README.md](benchmarks/README.md) for detailed results and methodology.
 

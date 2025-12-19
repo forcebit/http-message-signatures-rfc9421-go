@@ -20,12 +20,11 @@ const (
 
 // Shared test keys - generated once at init
 var (
-	testRSAPrivKey  *rsa.PrivateKey
-	testRSAPubKey   *rsa.PublicKey
-	testECPrivKey   *ecdsa.PrivateKey
-	testECPubKey    *ecdsa.PublicKey
-	testHMACKey     []byte
-	testCreatedTime int64
+	testRSAPrivKey *rsa.PrivateKey
+	testRSAPubKey  *rsa.PublicKey
+	testECPrivKey  *ecdsa.PrivateKey
+	testECPubKey   *ecdsa.PublicKey
+	testHMACKey    []byte
 )
 
 func init() {
@@ -50,9 +49,6 @@ func init() {
 	if _, err = rand.Read(testHMACKey); err != nil {
 		panic("failed to generate HMAC key: " + err.Error())
 	}
-
-	// Fixed timestamp for consistent testing
-	testCreatedTime = time.Now().Unix()
 }
 
 // createTestRequest creates a standard HTTP request for benchmarking
@@ -75,15 +71,6 @@ var testComponents = []parser.ComponentIdentifier{
 	{Name: "@method", Type: parser.ComponentDerived},
 	{Name: "@target-uri", Type: parser.ComponentDerived},
 	{Name: "content-type", Type: parser.ComponentField},
-}
-
-// testSignatureParams returns signature params for Forcebit
-func testSignatureParams(keyID, alg string) parser.SignatureParams {
-	return parser.SignatureParams{
-		Created:   &testCreatedTime,
-		KeyID:     &keyID,
-		Algorithm: &alg,
-	}
 }
 
 func benchmarkValidationOptions() parser.SignatureParamsValidationOptions {

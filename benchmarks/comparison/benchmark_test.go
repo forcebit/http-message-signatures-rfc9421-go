@@ -3,17 +3,13 @@ package comparison
 import (
 	"context"
 	"crypto"
-	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	// Forcebit
-	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/base"
-	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
-	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/sfv"
-	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/signing"
+	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/httpsig"
 
 	// yaronf/httpsign
 	yaronf "github.com/yaronf/httpsign"
@@ -33,125 +29,26 @@ import (
 )
 
 // =============================================================================
-// Header Serialization Helpers (for Forcebit full-flow benchmarks)
-// =============================================================================
-
-// serializeSignatureHeaders builds Signature-Input and Signature headers.
-func serializeSignatureHeaders(
-	label string,
-	components []parser.ComponentIdentifier,
-	params parser.SignatureParams,
-	sig []byte,
-) (signatureInput, signature string, err error) {
-	// Build Signature-Input dictionary
-	sigInputDict := &sfv.Dictionary{
-		Keys:   []string{label},
-		Values: make(map[string]interface{}),
-	}
-
-	items := make([]sfv.Item, len(components))
-	for i, comp := range components {
-		items[i] = sfv.Item{
-			Value:      comp.Name,
-			Parameters: componentParamsToSFV(comp.Parameters),
-		}
-	}
-
-	innerList := sfv.InnerList{
-		Items:      items,
-		Parameters: signatureParamsToSFV(params),
-	}
-	sigInputDict.Values[label] = innerList
-
-	signatureInput, err = sfv.SerializeDictionary(sigInputDict)
-	if err != nil {
-		return "", "", err
-	}
-
-	// Build Signature dictionary
-	sigDict := &sfv.Dictionary{
-		Keys:   []string{label},
-		Values: make(map[string]interface{}),
-	}
-	sigDict.Values[label] = sfv.Item{Value: sig}
-
-	signature, err = sfv.SerializeDictionary(sigDict)
-	if err != nil {
-		return "", "", err
-	}
-
-	return signatureInput, signature, nil
-}
-
-func componentParamsToSFV(params []parser.Parameter) []sfv.Parameter {
-	if len(params) == 0 {
-		return nil
-	}
-	result := make([]sfv.Parameter, len(params))
-	for i, p := range params {
-		result[i] = sfv.Parameter{Key: p.Key, Value: bareItemToSFV(p.Value)}
-	}
-	return result
-}
-
-func signatureParamsToSFV(params parser.SignatureParams) []sfv.Parameter {
-	var result []sfv.Parameter
-	if params.Created != nil {
-		result = append(result, sfv.Parameter{Key: "created", Value: *params.Created})
-	}
-	if params.Expires != nil {
-		result = append(result, sfv.Parameter{Key: "expires", Value: *params.Expires})
-	}
-	if params.Nonce != nil {
-		result = append(result, sfv.Parameter{Key: "nonce", Value: *params.Nonce})
-	}
-	if params.Algorithm != nil {
-		result = append(result, sfv.Parameter{Key: "alg", Value: *params.Algorithm})
-	}
-	if params.KeyID != nil {
-		result = append(result, sfv.Parameter{Key: "keyid", Value: *params.KeyID})
-	}
-	if params.Tag != nil {
-		result = append(result, sfv.Parameter{Key: "tag", Value: *params.Tag})
-	}
-	return result
-}
-
-func bareItemToSFV(item parser.BareItem) interface{} {
-	switch v := item.(type) {
-	case parser.Boolean:
-		return v.Value
-	case parser.Integer:
-		return v.Value
-	case parser.String:
-		return v.Value
-	case parser.Token:
-		return sfv.Token{Value: v.Value}
-	case parser.ByteSequence:
-		return v.Value
-	default:
-		return nil
-	}
-}
-
-// =============================================================================
 // RSA-PSS-SHA512 Sign Benchmarks
 // =============================================================================
 
 func BenchmarkSign_RSAPSS_Forcebit(b *testing.B) {
-	alg, _ := signing.GetAlgorithm("rsa-pss-sha512")
-	params := testSignatureParams("test-key-rsa", "rsa-pss-sha512")
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "rsa-pss-sha512",
+		Key:        testRSAPrivKey,
+		KeyID:      "test-key-rsa",
+		Components: testComponents,
+		Created:    time.Now(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		req := createTestRequest()
-		msg := base.WrapRequest(req)
-		sigBase, _ := base.Build(msg, testComponents, params)
-		sig, _ := alg.Sign([]byte(sigBase), testRSAPrivKey)
-		sigInput, sigHeader, _ := serializeSignatureHeaders("sig1", testComponents, params, sig)
-		req.Header.Set("Signature-Input", sigInput)
-		req.Header.Set("Signature", sigHeader)
+		_, _ = signer.SignRequest(req)
 	}
 }
 
@@ -213,34 +110,35 @@ func BenchmarkSign_RSAPSS_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkVerify_RSAPSS_Forcebit(b *testing.B) {
-	alg, _ := signing.GetAlgorithm("rsa-pss-sha512")
-	params := testSignatureParams("test-key-rsa", "rsa-pss-sha512")
-	validationOpts := benchmarkValidationOptions()
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "rsa-pss-sha512",
+		Key:        testRSAPrivKey,
+		KeyID:      "test-key-rsa",
+		Components: testComponents,
+		Created:    time.Now(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
 
-	// Pre-sign request
 	req := createTestRequest()
-	msg := base.WrapRequest(req)
-	sigBase, _ := base.Build(msg, testComponents, params)
-	sig, _ := alg.Sign([]byte(sigBase), testRSAPrivKey)
-	sigInput, sigHeader, _ := serializeSignatureHeaders("sig1", testComponents, params, sig)
-	req.Header.Set("Signature-Input", sigInput)
-	req.Header.Set("Signature", sigHeader)
+	if _, err := signer.SignRequest(req); err != nil {
+		b.Fatalf("failed to sign request: %v", err)
+	}
+
+	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+		Key:              testRSAPubKey,
+		Algorithm:        "rsa-pss-sha512",
+		ParamsValidation: benchmarkValidationOptions(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create verifier: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		parsed, _ := parser.ParseSignatures(
-			req.Header.Get("Signature-Input"),
-			req.Header.Get("Signature"),
-			sfv.DefaultLimits(),
-		)
-		entry := parsed.Signatures["sig1"]
-		if err := parser.ValidateSignatureParams(entry.SignatureParams, validationOpts); err != nil {
-			b.Fatalf("signature params validation failed: %v", err)
-		}
-		msg := base.WrapRequest(req)
-		sigBase, _ := base.Build(msg, entry.CoveredComponents, entry.SignatureParams)
-		_ = alg.Verify([]byte(sigBase), entry.SignatureValue, testRSAPubKey)
+		_, _ = verifier.VerifyRequest(req)
 	}
 }
 
@@ -335,19 +233,22 @@ func BenchmarkVerify_RSAPSS_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkSign_ECDSA_Forcebit(b *testing.B) {
-	alg, _ := signing.GetAlgorithm("ecdsa-p256-sha256")
-	params := testSignatureParams("test-key-ecdsa", "ecdsa-p256-sha256")
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "ecdsa-p256-sha256",
+		Key:        testECPrivKey,
+		KeyID:      "test-key-ecdsa",
+		Components: testComponents,
+		Created:    time.Now(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		req := createTestRequest()
-		msg := base.WrapRequest(req)
-		sigBase, _ := base.Build(msg, testComponents, params)
-		sig, _ := alg.Sign([]byte(sigBase), testECPrivKey)
-		sigInput, sigHeader, _ := serializeSignatureHeaders("sig1", testComponents, params, sig)
-		req.Header.Set("Signature-Input", sigInput)
-		req.Header.Set("Signature", sigHeader)
+		_, _ = signer.SignRequest(req)
 	}
 }
 
@@ -409,33 +310,35 @@ func BenchmarkSign_ECDSA_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkVerify_ECDSA_Forcebit(b *testing.B) {
-	alg, _ := signing.GetAlgorithm("ecdsa-p256-sha256")
-	params := testSignatureParams("test-key-ecdsa", "ecdsa-p256-sha256")
-	validationOpts := benchmarkValidationOptions()
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "ecdsa-p256-sha256",
+		Key:        testECPrivKey,
+		KeyID:      "test-key-ecdsa",
+		Components: testComponents,
+		Created:    time.Now(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
 
 	req := createTestRequest()
-	msg := base.WrapRequest(req)
-	sigBase, _ := base.Build(msg, testComponents, params)
-	sig, _ := alg.Sign([]byte(sigBase), testECPrivKey)
-	sigInput, sigHeader, _ := serializeSignatureHeaders("sig1", testComponents, params, sig)
-	req.Header.Set("Signature-Input", sigInput)
-	req.Header.Set("Signature", sigHeader)
+	if _, err := signer.SignRequest(req); err != nil {
+		b.Fatalf("failed to sign request: %v", err)
+	}
+
+	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+		Key:              testECPubKey,
+		Algorithm:        "ecdsa-p256-sha256",
+		ParamsValidation: benchmarkValidationOptions(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create verifier: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		parsed, _ := parser.ParseSignatures(
-			req.Header.Get("Signature-Input"),
-			req.Header.Get("Signature"),
-			sfv.DefaultLimits(),
-		)
-		entry := parsed.Signatures["sig1"]
-		if err := parser.ValidateSignatureParams(entry.SignatureParams, validationOpts); err != nil {
-			b.Fatalf("signature params validation failed: %v", err)
-		}
-		msg := base.WrapRequest(req)
-		sigBase, _ := base.Build(msg, entry.CoveredComponents, entry.SignatureParams)
-		_ = alg.Verify([]byte(sigBase), entry.SignatureValue, testECPubKey)
+		_, _ = verifier.VerifyRequest(req)
 	}
 }
 
@@ -530,19 +433,22 @@ func BenchmarkVerify_ECDSA_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkSign_HMAC_Forcebit(b *testing.B) {
-	alg, _ := signing.GetAlgorithm("hmac-sha256")
-	params := testSignatureParams("test-key-hmac", "hmac-sha256")
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "hmac-sha256",
+		Key:        testHMACKey,
+		KeyID:      "test-key-hmac",
+		Components: testComponents,
+		Created:    time.Now(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		req := createTestRequest()
-		msg := base.WrapRequest(req)
-		sigBase, _ := base.Build(msg, testComponents, params)
-		sig, _ := alg.Sign([]byte(sigBase), testHMACKey)
-		sigInput, sigHeader, _ := serializeSignatureHeaders("sig1", testComponents, params, sig)
-		req.Header.Set("Signature-Input", sigInput)
-		req.Header.Set("Signature", sigHeader)
+		_, _ = signer.SignRequest(req)
 	}
 }
 
@@ -604,33 +510,35 @@ func BenchmarkSign_HMAC_CommonFate(b *testing.B) {
 // =============================================================================
 
 func BenchmarkVerify_HMAC_Forcebit(b *testing.B) {
-	alg, _ := signing.GetAlgorithm("hmac-sha256")
-	params := testSignatureParams("test-key-hmac", "hmac-sha256")
-	validationOpts := benchmarkValidationOptions()
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "hmac-sha256",
+		Key:        testHMACKey,
+		KeyID:      "test-key-hmac",
+		Components: testComponents,
+		Created:    time.Now(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create signer: %v", err)
+	}
 
 	req := createTestRequest()
-	msg := base.WrapRequest(req)
-	sigBase, _ := base.Build(msg, testComponents, params)
-	sig, _ := alg.Sign([]byte(sigBase), testHMACKey)
-	sigInput, sigHeader, _ := serializeSignatureHeaders("sig1", testComponents, params, sig)
-	req.Header.Set("Signature-Input", sigInput)
-	req.Header.Set("Signature", sigHeader)
+	if _, err := signer.SignRequest(req); err != nil {
+		b.Fatalf("failed to sign request: %v", err)
+	}
+
+	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+		Key:              testHMACKey,
+		Algorithm:        "hmac-sha256",
+		ParamsValidation: benchmarkValidationOptions(),
+	})
+	if err != nil {
+		b.Fatalf("failed to create verifier: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		parsed, _ := parser.ParseSignatures(
-			req.Header.Get("Signature-Input"),
-			req.Header.Get("Signature"),
-			sfv.DefaultLimits(),
-		)
-		entry := parsed.Signatures["sig1"]
-		if err := parser.ValidateSignatureParams(entry.SignatureParams, validationOpts); err != nil {
-			b.Fatalf("signature params validation failed: %v", err)
-		}
-		msg := base.WrapRequest(req)
-		sigBase, _ := base.Build(msg, entry.CoveredComponents, entry.SignatureParams)
-		_ = alg.Verify([]byte(sigBase), entry.SignatureValue, testHMACKey)
+		_, _ = verifier.VerifyRequest(req)
 	}
 }
 
@@ -815,43 +723,36 @@ func BenchmarkVerify_AllLibraries_HMAC(b *testing.B) {
 // =============================================================================
 
 func TestSign_Forcebit(t *testing.T) {
-	alg, _ := signing.GetAlgorithm("rsa-pss-sha512")
-	params := testSignatureParams("test-key-rsa", "rsa-pss-sha512")
+	signer, err := httpsig.NewSigner(httpsig.SignerOptions{
+		Algorithm:  "rsa-pss-sha512",
+		Key:        testRSAPrivKey,
+		KeyID:      "test-key-rsa",
+		Components: testComponents,
+		Created:    time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("failed to create signer: %v", err)
+	}
 
 	req := createTestRequest()
-	msg := base.WrapRequest(req)
-	sigBase, err := base.Build(msg, testComponents, params)
+	headers, err := signer.SignRequest(req)
 	if err != nil {
-		t.Fatalf("failed to build signature base: %v", err)
+		t.Fatalf("failed to sign request: %v", err)
 	}
 
-	sig, err := alg.Sign([]byte(sigBase), testRSAPrivKey)
+	verifier, err := httpsig.NewVerifier(httpsig.VerifyOptions{
+		Key:              testRSAPubKey,
+		Algorithm:        "rsa-pss-sha512",
+		ParamsValidation: benchmarkValidationOptions(),
+	})
 	if err != nil {
-		t.Fatalf("failed to sign: %v", err)
+		t.Fatalf("failed to create verifier: %v", err)
 	}
 
-	sigInput, sigHeader, err := serializeSignatureHeaders("sig1", testComponents, params, sig)
-	if err != nil {
-		t.Fatalf("failed to serialize: %v", err)
-	}
-	req.Header.Set("Signature-Input", sigInput)
-	req.Header.Set("Signature", sigHeader)
-
-	// Verify round-trip
-	parsed, err := parser.ParseSignatures(sigInput, sigHeader, sfv.DefaultLimits())
-	if err != nil {
-		t.Fatalf("failed to parse: %v", err)
-	}
-
-	entry := parsed.Signatures["sig1"]
-	msg2 := base.WrapRequest(req)
-	sigBase2, _ := base.Build(msg2, entry.CoveredComponents, entry.SignatureParams)
-
-	if err := alg.Verify([]byte(sigBase2), entry.SignatureValue, testRSAPubKey); err != nil {
+	if _, err := verifier.VerifyRequest(req); err != nil {
 		t.Fatalf("failed to verify: %v", err)
 	}
 
-	t.Logf("Signature-Input: %s", sigInput)
-	t.Logf("Signature: %s", sigHeader)
-	t.Logf("Signature (base64): %s", base64.StdEncoding.EncodeToString(sig))
+	t.Logf("Signature-Input: %s", headers.SignatureInput)
+	t.Logf("Signature: %s", headers.Signature)
 }
