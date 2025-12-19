@@ -45,9 +45,10 @@ type SignatureEntry struct {
 //   - @method, @target-uri, @authority, @scheme (request only)
 //   - @request-target, @path, @query, @query-param (request only)
 //   - @status (response only)
-//   - @request-response (with 'req' parameter)
 //
 // Note: @signature-params is auto-generated and MUST NOT appear in covered components.
+// The 'req' parameter (Section 2.4) can be applied to any component to derive
+// values from the request when signing a response.
 //
 // # HTTP Fields (ComponentField)
 //

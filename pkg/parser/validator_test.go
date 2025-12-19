@@ -16,7 +16,6 @@ func TestValidateComponentIdentifier_ValidDerivedComponents(t *testing.T) {
 		"@path",
 		"@query",
 		"@status",
-		"@request-response",
 	}
 
 	for _, name := range validComponents {
@@ -291,7 +290,6 @@ func FuzzValidateComponentIdentifier(f *testing.F) {
 		{"@path", ComponentDerived, nil, nil},
 		{"@query", ComponentDerived, nil, nil},
 		{"@status", ComponentDerived, nil, nil},
-		{"@request-response", ComponentDerived, []string{"req"}, []string{"true"}},
 
 		// Valid @query-param with 'name' parameter
 		{"@query-param", ComponentDerived, []string{"name"}, []string{"foo"}},

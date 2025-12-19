@@ -315,7 +315,6 @@ func TestParseSignatures_AllDerivedComponents(t *testing.T) {
 		{"@scheme", ""},
 		{"@request-target", ""},
 		{"@target-uri", ""},
-		{"@request-response", ""},
 	}
 
 	for _, tt := range tests {
@@ -457,7 +456,6 @@ func TestParseSignatures_AcceptAllValidDerivedComponents(t *testing.T) {
 		"@path",
 		"@query",
 		"@status",
-		"@request-response",
 	}
 
 	for _, comp := range validComponents {
@@ -1017,10 +1015,6 @@ func FuzzParseSignatures(f *testing.F) {
 		},
 		{
 			`sig1=("@status");alg="rsa"`,
-			`sig1=:YWJj:`,
-		},
-		{
-			`sig1=("@request-response";req);alg="rsa"`,
 			`sig1=:YWJj:`,
 		},
 

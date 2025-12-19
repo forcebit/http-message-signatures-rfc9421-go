@@ -7,16 +7,15 @@ import (
 // validDerivedComponents is the whitelist of RFC 9421 Section 2.2 derived components.
 // Per VR-041: @signature-params MUST NOT appear in covered components (it's auto-generated).
 var validDerivedComponents = map[string]bool{
-	"@method":           true, // RFC 9421 Section 2.2.1
-	"@target-uri":       true, // RFC 9421 Section 2.2.2
-	"@authority":        true, // RFC 9421 Section 2.2.3
-	"@scheme":           true, // RFC 9421 Section 2.2.4
-	"@request-target":   true, // RFC 9421 Section 2.2.5
-	"@path":             true, // RFC 9421 Section 2.2.6
-	"@query":            true, // RFC 9421 Section 2.2.7
-	"@query-param":      true, // RFC 9421 Section 2.2.8 (requires 'name' parameter)
-	"@status":           true, // RFC 9421 Section 2.2.9
-	"@request-response": true, // RFC 9421 Section 2.2.10 (with 'req' parameter)
+	"@method":         true, // RFC 9421 Section 2.2.1
+	"@target-uri":     true, // RFC 9421 Section 2.2.2
+	"@authority":      true, // RFC 9421 Section 2.2.3
+	"@scheme":         true, // RFC 9421 Section 2.2.4
+	"@request-target": true, // RFC 9421 Section 2.2.5
+	"@path":           true, // RFC 9421 Section 2.2.6
+	"@query":          true, // RFC 9421 Section 2.2.7
+	"@query-param":    true, // RFC 9421 Section 2.2.8 (requires 'name' parameter)
+	"@status":         true, // RFC 9421 Section 2.2.9
 }
 
 // reservedDerivedComponents are derived components that must NOT be in covered components.
