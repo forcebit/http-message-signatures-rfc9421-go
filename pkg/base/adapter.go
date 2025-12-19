@@ -41,7 +41,38 @@ func (w *requestWrapper) Method() (string, error) {
 }
 
 func (w *requestWrapper) URL() (*url.URL, error) {
-	return w.req.URL, nil
+	u := w.req.URL
+
+	// For server-side requests, URL.Scheme and URL.Host are empty.
+	// Reconstruct from req.Host and req.TLS.
+	if u.Scheme == "" || u.Host == "" {
+		scheme := u.Scheme
+		host := u.Host
+
+		if scheme == "" {
+			if w.req.TLS != nil {
+				scheme = "https"
+			} else {
+				scheme = "http"
+			}
+		}
+
+		if host == "" {
+			host = w.req.Host
+		}
+
+		return &url.URL{
+			Scheme:      scheme,
+			Host:        host,
+			Path:        u.Path,
+			RawPath:     u.RawPath,
+			RawQuery:    u.RawQuery,
+			Fragment:    u.Fragment,
+			RawFragment: u.RawFragment,
+		}, nil
+	}
+
+	return u, nil
 }
 
 func (w *requestWrapper) StatusCode() (int, error) {

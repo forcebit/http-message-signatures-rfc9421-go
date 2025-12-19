@@ -1,7 +1,9 @@
 package base
 
 import (
+	"crypto/tls"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -1242,4 +1244,133 @@ func TestBuildSignatureBase_WithBSParameter(t *testing.T) {
 	if !strings.Contains(sigBase, "c2hhLTI1Nj1YNDhFOXFPb2txcXJ2ZHRzOG5PSlJKTjNPV0RVb3lXeEJmN2tidTlEQlBFPQ==") {
 		t.Errorf("signature base should contain base64-encoded value, got:\n%s", sigBase)
 	}
+}
+
+// TestServerSideRequestDerivedComponents tests that derived components
+// are correctly extracted from server-side requests where URL.Scheme
+// and URL.Host are empty (Go's http.Request behavior for server handlers).
+func TestServerSideRequestDerivedComponents(t *testing.T) {
+	t.Run("@authority from server-side request", func(t *testing.T) {
+		// Server-side request: URL.Host is empty, req.Host has the value
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Path: "/foo"},
+			Host:   "example.com:8080",
+		}
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@authority",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "example.com:8080"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("@scheme from server-side HTTPS request", func(t *testing.T) {
+		// Server-side HTTPS request: URL.Scheme is empty, req.TLS is non-nil
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Path: "/foo"},
+			Host:   "example.com",
+			TLS:    &tls.ConnectionState{},
+		}
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@scheme",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "https"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("@scheme from server-side HTTP request", func(t *testing.T) {
+		// Server-side HTTP request: URL.Scheme is empty, req.TLS is nil
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Path: "/foo"},
+			Host:   "example.com",
+			TLS:    nil,
+		}
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@scheme",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "http"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("@target-uri from server-side HTTPS request", func(t *testing.T) {
+		// Server-side HTTPS request with query string
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Path: "/foo", RawQuery: "bar=baz"},
+			Host:   "example.com",
+			TLS:    &tls.ConnectionState{},
+		}
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@target-uri",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "https://example.com/foo?bar=baz"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("@target-uri from server-side HTTP request with port", func(t *testing.T) {
+		// Server-side HTTP request with non-standard port
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Path: "/api/v1"},
+			Host:   "example.com:8080",
+			TLS:    nil,
+		}
+		msg := WrapRequest(req)
+		comp := parser.ComponentIdentifier{
+			Name: "@target-uri",
+			Type: parser.ComponentDerived,
+		}
+
+		got, err := extractComponentValue(msg, comp)
+		if err != nil {
+			t.Fatalf("extractComponentValue() error = %v", err)
+		}
+
+		want := "http://example.com:8080/api/v1"
+		if got != want {
+			t.Errorf("extractComponentValue() = %q, want %q", got, want)
+		}
+	})
 }
