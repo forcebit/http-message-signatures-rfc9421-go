@@ -125,7 +125,7 @@ func (v *Verifier) verifyMessage(ctx context.Context, msg base.HTTPMessage, head
 	var signatures map[string]parser.SignatureEntry
 
 	// Check cache for Signature-Input
-	if signatureInput != "" && signatureInput == v.cachedInputRaw {
+	if signatureInput == v.cachedInputRaw {
 		signatures = v.cachedSignatures
 	} else {
 		// Cache miss or first call
