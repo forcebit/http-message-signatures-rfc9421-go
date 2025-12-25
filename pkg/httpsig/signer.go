@@ -45,6 +45,7 @@ type Signer struct {
 	params     parser.SignatureParams
 	alg        signing.Algorithm
 	key        interface{}
+	sigInput   string
 }
 
 // NewSigner creates a Signer with the provided options.
@@ -104,12 +105,18 @@ func NewSigner(opts SignerOptions) (*Signer, error) {
 		params.Tag = &tag
 	}
 
+	sigInput, err := serializeSignatureInput(label, opts.Components, params)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Signer{
 		label:      label,
 		components: opts.Components,
 		params:     params,
 		alg:        alg,
 		key:        opts.Key,
+		sigInput:   sigInput,
 	}, nil
 }
 
@@ -157,18 +164,13 @@ func (s *Signer) signMessage(msg base.HTTPMessage) (SignatureHeaders, error) {
 		return SignatureHeaders{}, err
 	}
 
-	sigInput, err := serializeSignatureInput(s.label, s.components, s.params)
-	if err != nil {
-		return SignatureHeaders{}, err
-	}
-
 	sigHeader, err := serializeSignature(s.label, signature)
 	if err != nil {
 		return SignatureHeaders{}, err
 	}
 
 	return SignatureHeaders{
-		SignatureInput: sigInput,
+		SignatureInput: s.sigInput,
 		Signature:      sigHeader,
 	}, nil
 }

@@ -1,7 +1,9 @@
 package httpsig
 
 import (
+	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
 	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/sfv"
@@ -43,13 +45,19 @@ func serializeSignature(label string, signature []byte) (string, error) {
 		return "", fmt.Errorf("signature label is required")
 	}
 
-	sigDict := &sfv.Dictionary{
-		Keys:   []string{label},
-		Values: make(map[string]interface{}),
-	}
-	sigDict.Values[label] = sfv.Item{Value: signature}
+	// Optimization: For a single signature label, we can avoid the overhead
+	// of creating an sfv.Dictionary and use direct serialization.
+	// Format: label=:base64:
+	encoded := base64.StdEncoding.EncodeToString(signature)
 
-	return sfv.SerializeDictionary(sigDict)
+	var sb strings.Builder
+	sb.Grow(len(label) + len(encoded) + 3) // +1 for '=', +2 for ':'
+	sb.WriteString(label)
+	sb.WriteString("=:")
+	sb.WriteString(encoded)
+	sb.WriteRune(':')
+
+	return sb.String(), nil
 }
 
 func componentParamsToSFV(params []parser.Parameter) []sfv.Parameter {

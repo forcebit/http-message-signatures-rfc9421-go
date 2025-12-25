@@ -76,19 +76,47 @@ func ParseSignatures(signatureInput, signature string, limits sfv.Limits) (*Pars
 	return result, nil
 }
 
-// parseSignatureEntry processes a single signature entry.
-func parseSignatureEntry(label string, inputValue, sigValue interface{}) (SignatureEntry, error) {
+// ParseSignatureInput parses an RFC 9421 Signature-Input header.
+// This is used for caching parsed metadata independently of signature values.
+func ParseSignatureInput(signatureInput string, limits sfv.Limits) (*ParsedSignatures, error) {
+	if signatureInput == "" {
+		return nil, fmt.Errorf("header Signature-Input is empty")
+	}
+
+	inputParser := sfv.NewParser(signatureInput, limits)
+	inputDict, err := inputParser.ParseDictionary()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Signature-Input header: %w", err)
+	}
+
+	result := &ParsedSignatures{
+		Signatures: make(map[string]SignatureEntry),
+	}
+
+	for _, label := range inputDict.Keys {
+		// Extract covered components and parameters
+		entry, err := parseSignatureEntryFromInput(label, inputDict.Values[label])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse signature input %q: %w", label, err)
+		}
+		result.Signatures[label] = entry
+	}
+
+	return result, nil
+}
+
+// parseSignatureEntryFromInput processes only the metadata part of a signature entry.
+func parseSignatureEntryFromInput(label string, inputValue interface{}) (SignatureEntry, error) {
 	entry := SignatureEntry{
 		Label: label,
 	}
 
-	// T043: Extract covered components list from inner list (FR-002)
 	inputInnerList, ok := inputValue.(sfv.InnerList)
 	if !ok {
 		return entry, fmt.Errorf("header Signature-Input value must be an inner list")
 	}
 
-	// T043, T044: Extract covered components and their parameters
+	// Extract covered components and their parameters
 	entry.CoveredComponents = make([]ComponentIdentifier, len(inputInnerList.Items))
 	for i, item := range inputInnerList.Items {
 		compName, ok := item.Value.(string)
@@ -96,14 +124,11 @@ func parseSignatureEntry(label string, inputValue, sigValue interface{}) (Signat
 			return entry, fmt.Errorf("covered component must be a string, got %T", item.Value)
 		}
 
-		// Determine component type (FR-003, FR-013, FR-014)
-		// Per VR-009, VR-010: Name starting with "@" indicates derived component
 		compType := ComponentField
 		if len(compName) > 0 && compName[0] == '@' {
 			compType = ComponentDerived
 		}
 
-		// T044: Extract component parameters (FR-004)
 		params := make([]Parameter, len(item.Parameters))
 		for j, sfvParam := range item.Parameters {
 			params[j] = Parameter{
@@ -118,19 +143,24 @@ func parseSignatureEntry(label string, inputValue, sigValue interface{}) (Signat
 			Parameters: params,
 		}
 
-		// Validate component identifier (derived component whitelist, parameter combinations)
 		if err := validateComponentIdentifier(entry.CoveredComponents[i]); err != nil {
 			return entry, fmt.Errorf("invalid component at position %d: %w", i, err)
 		}
 	}
 
-	// FR-002: At least one covered component recommended (but RFC allows empty for testing)
-	// Note: RFC 9421 B.2.1 shows an example with empty component list, so we allow it
-	// though it's discouraged in Section 7.2.1
-
-	// T045: Extract signature parameters from inner list parameters (FR-005)
 	var err error
 	entry.SignatureParams, err = extractSignatureParams(inputInnerList.Parameters)
+	if err != nil {
+		return entry, err
+	}
+
+	return entry, nil
+}
+
+// parseSignatureEntry processes a single signature entry.
+func parseSignatureEntry(label string, inputValue, sigValue interface{}) (SignatureEntry, error) {
+	// Process the metadata part
+	entry, err := parseSignatureEntryFromInput(label, inputValue)
 	if err != nil {
 		return entry, err
 	}

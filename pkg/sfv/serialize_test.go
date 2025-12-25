@@ -1,6 +1,7 @@
 package sfv
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -544,13 +545,15 @@ func TestSerializeBareItem(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := serializeBareItem(tt.value)
+			var sb strings.Builder
+			err := writeBareItem(&sb, tt.value)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("serializeBareItem() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("writeBareItem() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			got := sb.String()
 			if got != tt.want {
-				t.Errorf("serializeBareItem() = %q, want %q", got, tt.want)
+				t.Errorf("writeBareItem() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -610,13 +613,15 @@ func TestSerializeParameters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := serializeParameters(tt.params)
+			var sb strings.Builder
+			err := writeParameters(&sb, tt.params)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("serializeParameters() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("writeParameters() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			got := sb.String()
 			if got != tt.want {
-				t.Errorf("serializeParameters() = %q, want %q", got, tt.want)
+				t.Errorf("writeParameters() = %q, want %q", got, tt.want)
 			}
 		})
 	}

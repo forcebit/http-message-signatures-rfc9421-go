@@ -2,6 +2,7 @@ package base
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/forcebit/http-message-signatures-rfc9421-go/pkg/parser"
 )
@@ -47,10 +48,9 @@ import (
 //   - Component values preserve exact whitespace
 //   - Empty component lists are valid (RFC 9421 B.2.1)
 func Build(msg HTTPMessage, components []parser.ComponentIdentifier, params parser.SignatureParams) (string, error) {
-	// Extract component values and format component lines
-	componentLines := make([]string, 0, len(components))
+	var sb strings.Builder
 
-	for _, comp := range components {
+	for i, comp := range components {
 		// Extract the component value from the HTTP message
 		value, err := extractComponentValue(msg, comp)
 		if err != nil {
@@ -58,15 +58,17 @@ func Build(msg HTTPMessage, components []parser.ComponentIdentifier, params pars
 		}
 
 		// Format the component line
-		line := formatComponentLine(comp, value)
-		componentLines = append(componentLines, line)
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+		writeComponentLine(&sb, comp, value)
 	}
 
 	// Format the @signature-params line
-	signatureParamsLine := formatSignatureParamsLine(components, params)
+	if len(components) > 0 {
+		sb.WriteString("\n")
+	}
+	writeSignatureParamsLine(&sb, components, params)
 
-	// Assemble the final signature base
-	signatureBase := assembleSignatureBase(componentLines, signatureParamsLine)
-
-	return signatureBase, nil
+	return sb.String(), nil
 }

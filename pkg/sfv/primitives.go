@@ -76,45 +76,76 @@ func (p *Parser) parseString() (string, error) {
 		return "", p.newParseError("expected '\"' at start of string")
 	}
 
-	var buf []byte
+	start := p.offset
+	hasEscapes := false
+
 	for {
 		if p.isEOF() {
 			return "", p.newParseError("unexpected EOF in string (missing closing quote)")
 		}
 
 		c := p.data[p.offset]
-		p.offset++
 
 		if c == '"' {
 			// End of string
-			return string(buf), nil
-		} else if c == '\\' {
-			// Escape sequence
+			val := p.data[start:p.offset]
+			p.offset++ // consume closing quote
+
+			if !hasEscapes {
+				// Optimization: zero-copy substring if no escapes
+				return val, nil
+			}
+
+			// Slow path: handle escapes
+			return p.decodeString(val)
+		}
+
+		if c == '\\' {
+			hasEscapes = true
+			p.offset++ // skip backslash
 			if p.isEOF() {
 				return "", p.newParseError("unexpected EOF after backslash")
 			}
-
-			escaped := p.data[p.offset]
-			p.offset++
-
-			if escaped != '"' && escaped != '\\' {
-				return "", p.newParseError("invalid escape sequence: only \\\" and \\\\ are allowed")
-			}
-
-			buf = append(buf, escaped)
 		} else if c < 0x20 || c > 0x7E {
 			// Control characters and non-ASCII not allowed
 			return "", p.newParseError("invalid character in string (must be printable ASCII)")
+		}
+
+		p.offset++
+
+		// Check string length limit during parsing to fail fast
+		if p.limits.MaxStringLength > 0 && (p.offset-start) > p.limits.MaxStringLength {
+			return "", p.newParseError(fmt.Sprintf("string length %d exceeds limit %d",
+				p.offset-start, p.limits.MaxStringLength))
+		}
+	}
+}
+
+// decodeString handles escape sequences in SFV strings.
+func (p *Parser) decodeString(val string) (string, error) {
+	var buf []byte
+	for i := 0; i < len(val); i++ {
+		c := val[i]
+		if c == '\\' {
+			i++
+			if i >= len(val) {
+				return "", p.newParseError("unexpected end of string after backslash")
+			}
+			escaped := val[i]
+			if escaped != '"' && escaped != '\\' {
+				return "", p.newParseError("invalid escape sequence")
+			}
+			buf = append(buf, escaped)
 		} else {
 			buf = append(buf, c)
 		}
 
-		// Check string length limit during parsing to fail fast
 		if p.limits.MaxStringLength > 0 && len(buf) > p.limits.MaxStringLength {
 			return "", p.newParseError(fmt.Sprintf("string length %d exceeds limit %d",
 				len(buf), p.limits.MaxStringLength))
 		}
 	}
+	return string(buf), nil
 }
 
 // parseToken parses an RFC 8941 token (unquoted identifier).

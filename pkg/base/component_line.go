@@ -26,15 +26,18 @@ import (
 //	"example-dict";key="member-key": member-value
 func formatComponentLine(comp parser.ComponentIdentifier, value string) string {
 	var sb strings.Builder
+	writeComponentLine(&sb, comp, value)
+	return sb.String()
+}
 
+func writeComponentLine(sb *strings.Builder, comp parser.ComponentIdentifier, value string) {
 	// Format the component identifier (name + parameters)
-	sb.WriteString(formatComponentIdentifier(comp))
+	writeComponentIdentifier(sb, comp)
 
 	// Add separator (colon + space)
-	sb.WriteString(": ")
+	sb.WriteRune(':')
+	sb.WriteRune(' ')
 
 	// Add the component value (preserve exact formatting)
 	sb.WriteString(value)
-
-	return sb.String()
 }

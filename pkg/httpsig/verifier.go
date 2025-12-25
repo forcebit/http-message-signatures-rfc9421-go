@@ -54,6 +54,10 @@ type Verifier struct {
 	keyResolver        KeyResolver
 	paramsValidation   parser.SignatureParamsValidationOptions
 	limits             sfv.Limits
+
+	// Cache for Signature-Input parsing
+	cachedInputRaw   string
+	cachedSignatures map[string]parser.SignatureEntry
 }
 
 // NewVerifier creates a Verifier with the provided options.
@@ -111,26 +115,69 @@ func (v *Verifier) verifyMessage(ctx context.Context, msg base.HTTPMessage, head
 	signatureInput := headers.Get("Signature-Input")
 	signature := headers.Get("Signature")
 
-	parsed, err := parser.ParseSignatures(signatureInput, signature, v.limits)
+	if signatureInput == "" {
+		return VerifyResult{}, fmt.Errorf("header Signature-Input is empty")
+	}
+	if signature == "" {
+		return VerifyResult{}, fmt.Errorf("header Signature is empty")
+	}
+
+	var signatures map[string]parser.SignatureEntry
+
+	// Check cache for Signature-Input
+	if signatureInput != "" && signatureInput == v.cachedInputRaw {
+		signatures = v.cachedSignatures
+	} else {
+		// Cache miss or first call
+		parsed, err := parser.ParseSignatureInput(signatureInput, v.limits)
+		if err != nil {
+			return VerifyResult{}, err
+		}
+		signatures = parsed.Signatures
+		// Update cache
+		v.cachedInputRaw = signatureInput
+		v.cachedSignatures = signatures
+	}
+
+	// Now parse the Signature header as a dictionary to match labels
+	sigParser := sfv.NewParser(signature, v.limits)
+	sigDict, err := sigParser.ParseDictionary()
 	if err != nil {
-		return VerifyResult{}, err
+		return VerifyResult{}, fmt.Errorf("failed to parse Signature header: %w", err)
 	}
 
 	label := v.label
 	if label == "" {
-		if len(parsed.Signatures) != 1 {
+		if len(signatures) != 1 {
 			return VerifyResult{}, fmt.Errorf("signature label is required when multiple signatures are present")
 		}
-		for k := range parsed.Signatures {
+		for k := range signatures {
 			label = k
 			break
 		}
 	}
 
-	entry, ok := parsed.Signatures[label]
+	entry, ok := signatures[label]
 	if !ok {
-		return VerifyResult{}, fmt.Errorf("signature %q not found", label)
+		return VerifyResult{}, fmt.Errorf("signature %q not found in Signature-Input", label)
 	}
+
+	// Match signature value from Signature header
+	sigValue, ok := sigDict.Values[label]
+	if !ok {
+		return VerifyResult{}, fmt.Errorf("signature %q not found in Signature header", label)
+	}
+
+	sigItem, ok := sigValue.(sfv.Item)
+	if !ok {
+		return VerifyResult{}, fmt.Errorf("signature value must be an item")
+	}
+
+	sigBytes, ok := sigItem.Value.([]byte)
+	if !ok {
+		return VerifyResult{}, fmt.Errorf("signature value must be a byte sequence, got %T", sigItem.Value)
+	}
+	entry.SignatureValue = sigBytes
 
 	if err := v.validateRequiredComponents(entry.CoveredComponents); err != nil {
 		return VerifyResult{}, err

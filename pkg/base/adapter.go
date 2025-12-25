@@ -9,7 +9,8 @@ import (
 
 // requestWrapper adapts *http.Request to the HTTPMessage interface.
 type requestWrapper struct {
-	req *http.Request
+	req       *http.Request
+	cachedURL *url.URL
 }
 
 // WrapRequest adapts a standard *http.Request to the HTTPMessage interface.
@@ -41,6 +42,10 @@ func (w *requestWrapper) Method() (string, error) {
 }
 
 func (w *requestWrapper) URL() (*url.URL, error) {
+	if w.cachedURL != nil {
+		return w.cachedURL, nil
+	}
+
 	u := w.req.URL
 
 	// For server-side requests, URL.Scheme and URL.Host are empty.
@@ -61,7 +66,7 @@ func (w *requestWrapper) URL() (*url.URL, error) {
 			host = w.req.Host
 		}
 
-		return &url.URL{
+		w.cachedURL = &url.URL{
 			Scheme:      scheme,
 			Host:        host,
 			Path:        u.Path,
@@ -69,9 +74,11 @@ func (w *requestWrapper) URL() (*url.URL, error) {
 			RawQuery:    u.RawQuery,
 			Fragment:    u.Fragment,
 			RawFragment: u.RawFragment,
-		}, nil
+		}
+		return w.cachedURL, nil
 	}
 
+	w.cachedURL = u
 	return u, nil
 }
 

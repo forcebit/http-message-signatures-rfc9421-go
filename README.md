@@ -470,15 +470,31 @@ Verifies Content-Digest header against streaming body (O(1) memory).
 
 ## Benchmarks
 
-Compared against other Go RFC 9421 implementations ([yaronf/httpsign](https://github.com/yaronf/httpsign), [remitly-oss/httpsig-go](https://github.com/remitly-oss/httpsig-go), [common-fate/httpsig](https://github.com/common-fate/httpsig)) with consistent created-timestamp validation:
+Compared against other Go RFC 9421 implementations ([yaronf/httpsign](https://github.com/yaronf/httpsign), [remitly-oss/httpsig-go](https://github.com/remitly-oss/httpsig-go), [common-fate/httpsig](https://github.com/common-fate/httpsig)) on Apple M2 (arm64):
+
+### Performance Summary
 
 | Metric | Sign | Verify |
 |--------|------|--------|
-| **RSA-PSS-SHA512** | 6-8% faster | 4-12% faster |
-| **ECDSA-P256** | 7-11% faster | 2-8% faster |
-| **HMAC-SHA256** | 1.3-1.8x faster | 1.4-2.3x faster |
-| **Memory** | 7-50% less | 7-50% less |
-| **Allocations** | 5-54% fewer | 5-54% fewer |
+| **RSA-PSS-SHA512** | 5-11% faster | 8-15% faster |
+| **ECDSA-P256** | 4-8% faster | 5-9% faster |
+| **HMAC-SHA256** | 2.0-2.6x faster | 2.5-4.2x faster |
+| **Memory usage** | 1.3-2x less | 3-4.5x less |
+| **Allocations** | 2.5-3x fewer | 4-7x fewer |
+
+### Efficiency Visualization
+
+```mermaid
+gantt
+    title Verification Latency (HMAC-SHA256)
+    dateFormat  X
+    axisFormat %s
+    section ns/op
+    forcebit (1528)      :0, 1528
+    remitly (3865)      :0, 3865
+    common-fate (5858)  :0, 5858
+    yaronf (6509)        :0, 6509
+```
 
 See [benchmarks/README.md](benchmarks/README.md) for detailed results and methodology.
 

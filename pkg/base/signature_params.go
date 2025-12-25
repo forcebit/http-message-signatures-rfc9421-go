@@ -21,7 +21,11 @@ import (
 // RFC 9421 Section 2.5: Parameters must appear in canonical order.
 func formatSignatureParamsLine(components []parser.ComponentIdentifier, params parser.SignatureParams) string {
 	var sb strings.Builder
+	writeSignatureParamsLine(&sb, components, params)
+	return sb.String()
+}
 
+func writeSignatureParamsLine(sb *strings.Builder, components []parser.ComponentIdentifier, params parser.SignatureParams) {
 	// Start with the component name
 	sb.WriteString(`"@signature-params": (`)
 
@@ -30,7 +34,7 @@ func formatSignatureParamsLine(components []parser.ComponentIdentifier, params p
 		if i > 0 {
 			sb.WriteString(" ")
 		}
-		sb.WriteString(formatComponentIdentifier(comp))
+		writeComponentIdentifier(sb, comp)
 	}
 
 	sb.WriteString(")")
@@ -61,8 +65,6 @@ func formatSignatureParamsLine(components []parser.ComponentIdentifier, params p
 		sb.WriteString(`;tag=`)
 		sb.WriteString(sfv.SerializeString(*params.Tag))
 	}
-
-	return sb.String()
 }
 
 // formatComponentIdentifier formats a component identifier with its parameters.
@@ -80,7 +82,11 @@ func formatSignatureParamsLine(components []parser.ComponentIdentifier, params p
 // Parameters are serialized in the order they appear in the Parameters slice.
 func formatComponentIdentifier(comp parser.ComponentIdentifier) string {
 	var sb strings.Builder
+	writeComponentIdentifier(&sb, comp)
+	return sb.String()
+}
 
+func writeComponentIdentifier(sb *strings.Builder, comp parser.ComponentIdentifier) {
 	// Component name is always quoted
 	sb.WriteString(`"`)
 	sb.WriteString(comp.Name)
@@ -88,7 +94,7 @@ func formatComponentIdentifier(comp parser.ComponentIdentifier) string {
 
 	// Add component parameters in the order they appear
 	for _, param := range comp.Parameters {
-		sb.WriteString(";")
+		sb.WriteRune(';')
 		sb.WriteString(param.Key)
 
 		// Use type switch for efficient single dispatch
@@ -123,6 +129,4 @@ func formatComponentIdentifier(comp parser.ComponentIdentifier) string {
 			sb.WriteString(":")
 		}
 	}
-
-	return sb.String()
 }

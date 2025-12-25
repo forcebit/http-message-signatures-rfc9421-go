@@ -12,31 +12,39 @@ import (
 // Format: bare-item[;param1=value1;param2=value2...]
 func SerializeItem(item Item) (string, error) {
 	var sb strings.Builder
-
-	// Serialize bare item value
-	bareItem, err := serializeBareItem(item.Value)
-	if err != nil {
+	if err := writeItem(&sb, item); err != nil {
 		return "", err
 	}
-	sb.WriteString(bareItem)
+	return sb.String(), nil
+}
+
+func writeItem(sb *strings.Builder, item Item) error {
+	// Serialize bare item value
+	if err := writeBareItem(sb, item.Value); err != nil {
+		return err
+	}
 
 	// Serialize parameters
 	if len(item.Parameters) > 0 {
-		params, err := serializeParameters(item.Parameters)
-		if err != nil {
-			return "", err
+		if err := writeParameters(sb, item.Parameters); err != nil {
+			return err
 		}
-		sb.WriteString(params)
 	}
 
-	return sb.String(), nil
+	return nil
 }
 
 // SerializeInnerList serializes an RFC 8941 InnerList to its canonical string representation.
 // Format: (item1 item2 ...)[;param1=value1;param2=value2...]
 func SerializeInnerList(innerList InnerList) (string, error) {
 	var sb strings.Builder
+	if err := writeInnerList(&sb, innerList); err != nil {
+		return "", err
+	}
+	return sb.String(), nil
+}
 
+func writeInnerList(sb *strings.Builder, innerList InnerList) error {
 	sb.WriteRune('(')
 
 	// Serialize items
@@ -45,25 +53,21 @@ func SerializeInnerList(innerList InnerList) (string, error) {
 			sb.WriteRune(' ')
 		}
 
-		itemStr, err := SerializeItem(item)
-		if err != nil {
-			return "", err
+		if err := writeItem(sb, item); err != nil {
+			return err
 		}
-		sb.WriteString(itemStr)
 	}
 
 	sb.WriteRune(')')
 
 	// Serialize parameters
 	if len(innerList.Parameters) > 0 {
-		params, err := serializeParameters(innerList.Parameters)
-		if err != nil {
-			return "", err
+		if err := writeParameters(sb, innerList.Parameters); err != nil {
+			return err
 		}
-		sb.WriteString(params)
 	}
 
-	return sb.String(), nil
+	return nil
 }
 
 // SerializeDictionary serializes an RFC 8941 Dictionary to its canonical string representation.
@@ -74,7 +78,13 @@ func SerializeDictionary(dict *Dictionary) (string, error) {
 	}
 
 	var sb strings.Builder
+	if err := writeDictionary(&sb, dict); err != nil {
+		return "", err
+	}
+	return sb.String(), nil
+}
 
+func writeDictionary(sb *strings.Builder, dict *Dictionary) error {
 	for i, key := range dict.Keys {
 		if i > 0 {
 			sb.WriteString(", ")
@@ -98,25 +108,21 @@ func SerializeDictionary(dict *Dictionary) (string, error) {
 
 		switch v := value.(type) {
 		case Item:
-			itemStr, err := SerializeItem(v)
-			if err != nil {
-				return "", err
+			if err := writeItem(sb, v); err != nil {
+				return err
 			}
-			sb.WriteString(itemStr)
 
 		case InnerList:
-			innerListStr, err := SerializeInnerList(v)
-			if err != nil {
-				return "", err
+			if err := writeInnerList(sb, v); err != nil {
+				return err
 			}
-			sb.WriteString(innerListStr)
 
 		default:
-			return "", fmt.Errorf("invalid dictionary value type: %T", value)
+			return fmt.Errorf("invalid dictionary value type: %T", value)
 		}
 	}
 
-	return sb.String(), nil
+	return nil
 }
 
 // SerializeList serializes an RFC 8941 List to its canonical string representation.
@@ -127,7 +133,13 @@ func SerializeList(list *List) (string, error) {
 	}
 
 	var sb strings.Builder
+	if err := writeList(&sb, list); err != nil {
+		return "", err
+	}
+	return sb.String(), nil
+}
 
+func writeList(sb *strings.Builder, list *List) error {
 	for i, member := range list.Members {
 		if i > 0 {
 			sb.WriteString(", ")
@@ -135,64 +147,69 @@ func SerializeList(list *List) (string, error) {
 
 		switch v := member.(type) {
 		case Item:
-			itemStr, err := SerializeItem(v)
-			if err != nil {
-				return "", err
+			if err := writeItem(sb, v); err != nil {
+				return err
 			}
-			sb.WriteString(itemStr)
 
 		case InnerList:
-			innerListStr, err := SerializeInnerList(v)
-			if err != nil {
-				return "", err
+			if err := writeInnerList(sb, v); err != nil {
+				return err
 			}
-			sb.WriteString(innerListStr)
 
 		default:
-			return "", fmt.Errorf("invalid list member type: %T", member)
+			return fmt.Errorf("invalid list member type: %T", member)
 		}
 	}
 
-	return sb.String(), nil
+	return nil
 }
 
-// serializeBareItem serializes a bare item value to its canonical string representation.
-func serializeBareItem(value interface{}) (string, error) {
+func writeBareItem(sb *strings.Builder, value interface{}) error {
 	switch v := value.(type) {
 	case bool:
 		// Boolean: ?0 or ?1
 		if v {
-			return "?1", nil
+			sb.WriteString("?1")
+		} else {
+			sb.WriteString("?0")
 		}
-		return "?0", nil
+		return nil
 
 	case int64:
 		// Integer: decimal representation
-		return strconv.FormatInt(v, 10), nil
+		sb.WriteString(strconv.FormatInt(v, 10))
+		return nil
 
 	case int:
 		// Integer: decimal representation
-		return strconv.Itoa(v), nil
+		sb.WriteString(strconv.Itoa(v))
+		return nil
 
 	case Token:
 		// Token: serialize as bare token (unquoted)
-		return v.Value, nil
+		sb.WriteString(v.Value)
+		return nil
 
 	case string:
 		// String: serialize as quoted string with escape sequences
-		return SerializeString(v), nil
+		writeString(sb, v)
+		return nil
 
 	case []byte:
 		// Byte sequence: :base64:
+		sb.WriteRune(':')
 		encoded := base64.StdEncoding.EncodeToString(v)
-		return ":" + encoded + ":", nil
+		sb.WriteString(encoded)
+		sb.WriteRune(':')
+		return nil
 
 	default:
 		// Assume it's a token (string-like)
 		if str, ok := v.(string); ok {
-			return str, nil
+			sb.WriteString(str)
+			return nil
 		}
-		return "", fmt.Errorf("unsupported bare item type: %T", value)
+		return fmt.Errorf("unsupported bare item type: %T", value)
 	}
 }
 
@@ -200,6 +217,11 @@ func serializeBareItem(value interface{}) (string, error) {
 // It escapes backslashes and double quotes per RFC 8941 Section 3.3.3.
 func SerializeString(s string) string {
 	var sb strings.Builder
+	writeString(&sb, s)
+	return sb.String()
+}
+
+func writeString(sb *strings.Builder, s string) {
 	sb.WriteRune('"')
 
 	for _, r := range s {
@@ -210,14 +232,9 @@ func SerializeString(s string) string {
 	}
 
 	sb.WriteRune('"')
-	return sb.String()
 }
 
-// serializeParameters serializes RFC 8941 parameters.
-// Format: ;param1=value1;param2=value2...
-func serializeParameters(params []Parameter) (string, error) {
-	var sb strings.Builder
-
+func writeParameters(sb *strings.Builder, params []Parameter) error {
 	for _, param := range params {
 		sb.WriteRune(';')
 		sb.WriteString(param.Key)
@@ -231,14 +248,12 @@ func serializeParameters(params []Parameter) (string, error) {
 		// Non-true values need '=' and value
 		sb.WriteRune('=')
 
-		bareItem, err := serializeBareItem(param.Value)
-		if err != nil {
-			return "", err
+		if err := writeBareItem(sb, param.Value); err != nil {
+			return err
 		}
-		sb.WriteString(bareItem)
 	}
 
-	return sb.String(), nil
+	return nil
 }
 
 // isValidToken checks if a string is a valid RFC 8941 token.
